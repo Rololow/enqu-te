@@ -6,6 +6,7 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views.generic import View
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 import json
@@ -431,3 +432,66 @@ def api_investigation_presence_heartbeat(request, investigation_id):
     member.last_seen = timezone.now()
     member.save(update_fields=['last_seen'])
     return JsonResponse({'status': 'ok', 'last_seen': member.last_seen.isoformat()})
+
+
+@login_required
+@require_POST
+def api_investigation_delete(request, investigation_id):
+    """Allow the investigation owner to delete the investigation."""
+    investigation = get_object_or_404(Investigation, id=investigation_id)
+
+    if investigation.created_by != request.user:
+        return JsonResponse({'error': "Seul le créateur peut supprimer l'enquête."}, status=403)
+
+    with transaction.atomic():
+        messages.success(request, "L'enquête a été supprimée.")
+        investigation.delete()
+
+    return JsonResponse({'message': "Enquête supprimée", 'redirect': '/dashboard/'})
+
+
+@login_required
+@require_POST
+def api_investigation_revoke_member(request, investigation_id, user_id):
+    """Revoke a member's access and rotate the investigation code."""
+    investigation = get_object_or_404(Investigation, id=investigation_id)
+
+    if investigation.created_by != request.user:
+        return JsonResponse({'error': "Seul le créateur peut gérer les accès."}, status=403)
+
+    try:
+        member = InvestigationMember.objects.select_related('user').get(
+            investigation=investigation,
+            user_id=user_id
+        )
+    except InvestigationMember.DoesNotExist:
+        return JsonResponse({'error': 'Membre introuvable'}, status=404)
+
+    if member.user_id == investigation.created_by_id or member.role == 'owner':
+        return JsonResponse({'error': "Impossible de retirer le propriétaire de l'enquête."}, status=400)
+
+    with transaction.atomic():
+        member.delete()
+
+        # Generate a fresh and unique code distinct from the previous one
+        previous_code = investigation.code
+        new_code = None
+        for _ in range(10):
+            candidate = investigation.generate_code()
+            if candidate != previous_code and not Investigation.objects.filter(code=candidate).exists():
+                new_code = candidate
+                break
+
+        if not new_code:
+            return JsonResponse({'error': 'Impossible de générer un nouveau code pour le moment.'}, status=500)
+
+        investigation.code = new_code
+        investigation.save(update_fields=['code'])
+
+        messages.info(request, "Le code de l'enquête a été régénéré et le membre a été retiré.")
+
+    return JsonResponse({
+        'message': "Accès retiré et code régénéré",
+        'code': investigation.code,
+        'removed_user_id': user_id
+    })

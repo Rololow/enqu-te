@@ -34,6 +34,15 @@
                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
                         <i class="fas fa-arrow-left mr-2"></i>Retour
                     </a>
+                    {% if user_role == 'owner' %}
+                    <button type="button"
+                            id="investigationSettingsBtn"
+                            onclick="openInvestigationSettingsModal()"
+                            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fas fa-cog"></i>
+                        <span>Paramètres</span>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
             
@@ -82,7 +91,7 @@
                                 <i class="fas fa-user"></i>
                                 <div>
                                     <div class="font-semibold">Personne</div>
-                                    <div class="text-slate-400 text-sm">Ajouter une personne</div>
+                                    <div class="text-slate-200 text-sm">Ajouter une personne</div>
                                 </div>
                             </div>
                         </button>
@@ -93,7 +102,7 @@
                                 <i class="fas fa-map-marker-alt"></i>
                                 <div>
                                     <div class="font-semibold">Lieu</div>
-                                    <div class="text-slate-400 text-sm">Ajouter un lieu de l'enquête</div>
+                                    <div class="text-slate-200 text-sm">Ajouter un lieu de l'enquête</div>
                                 </div>
                             </div>
                         </button>
@@ -104,7 +113,7 @@
                                 <i class="fas fa-file-alt"></i>
                                 <div>
                                     <div class="font-semibold">Preuve</div>
-                                    <div class="text-slate-400 text-sm">Ajouter une preuve</div>
+                                    <div class="text-slate-200 text-sm">Ajouter une preuve</div>
                                 </div>
                             </div>
                         </button>
@@ -115,7 +124,7 @@
                                 <i class="fas fa-calendar"></i>
                                 <div>
                                     <div class="font-semibold">Événement</div>
-                                    <div class="text-slate-400 text-sm">Ajouter un événement</div>
+                                    <div class="text-slate-200 text-sm">Ajouter un événement</div>
                                 </div>
                             </div>
                         </button>
@@ -126,7 +135,7 @@
                                 <i class="fas fa-link"></i>
                                 <div>
                                     <div class="font-semibold">Lien</div>
-                                    <div class="text-slate-400 text-sm">Créer un lien entre entités</div>
+                                    <div class="text-slate-200 text-sm">Créer un lien entre entités</div>
                                 </div>
                             </div>
                         </button>
@@ -134,6 +143,52 @@
                 </div>
             </div>
         </div>
+
+        {% if user_role == 'owner' %}
+        <div id="investigationSettingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-slate-800 rounded-2xl w-full max-w-2xl p-6 border border-slate-700">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">Paramètres de l'enquête</h3>
+                            <p class="text-sm text-slate-400">Gérez les accès et supprimez l'enquête si nécessaire.</p>
+                        </div>
+                        <button type="button" onclick="closeInvestigationSettingsModal()" class="text-slate-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Code d'accès</h4>
+                            <p class="mt-2 text-slate-300">Code actuel :
+                                <span id="investigationSettingsCode" class="ml-2 font-mono text-lg text-blue-300">{{ investigation.code }}</span>
+                            </p>
+                            <p class="mt-1 text-xs text-slate-400">Retirer un membre régénère automatiquement le code.</p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Membres</h4>
+                                <span class="text-xs text-slate-500">Seuls les rôles non propriétaires peuvent être retirés.</span>
+                            </div>
+                            <div id="investigationMembersList" class="space-y-3">
+                                <div class="text-sm text-slate-400">Chargement des membres...</div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-700 pt-4">
+                            <h4 class="text-sm font-semibold text-red-400 uppercase tracking-wide mb-3">Zone dangereuse</h4>
+                            <p class="text-sm text-slate-300 mb-3">Supprimer l'enquête retirera définitivement toutes les données et l'accès pour tous les membres.</p>
+                            <button type="button" id="deleteInvestigationBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Supprimer l'enquête
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Filter dropdown (grouped checkboxes for Personnes, Lieux, Événements) -->
         <div class="relative mb-6">
@@ -329,6 +384,12 @@ class InvestigationApp {
         this.links = [];
         this.editingEntity = null;
         this.networkChart = null;
+        this.members = [];
+    this.membersLoaded = false;
+        this.currentUserId = '{{ request.user.id }}';
+        this.userRole = '{{ user_role }}';
+        this.investigationOwnerId = '{{ investigation.created_by_id }}';
+        this.isOwner = this.userRole === 'owner';
         
         this.init();
     }
@@ -362,12 +423,27 @@ class InvestigationApp {
             });
         }
 
+        const settingsModal = document.getElementById('investigationSettingsModal');
+        if (settingsModal) {
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target.id === 'investigationSettingsModal') {
+                    this.closeInvestigationSettingsModal();
+                }
+            });
+        }
+
+        const deleteInvestigationBtn = document.getElementById('deleteInvestigationBtn');
+        if (deleteInvestigationBtn) {
+            deleteInvestigationBtn.addEventListener('click', () => this.deleteInvestigation());
+        }
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 this.closeAddModal();
                 this.closeEditModal();
                 this.closeLinkModal();
                 this.closeAddTypeModal();
+                this.closeInvestigationSettingsModal();
                 document.getElementById('filterDropdown')?.classList.add('hidden');
             }
         });
@@ -452,17 +528,22 @@ class InvestigationApp {
     async fetchPresence() {
         try {
             const res = await fetch(`/api/investigation/${this.investigationId}/presence/`);
-            if (!res.ok) return;
+            if (!res.ok) return [];
             const data = await res.json();
-            this.renderPresence(data.members || []);
+            const members = data.members || [];
+            this.renderPresence(members);
+            return members;
         } catch (e) {
             console.error('Error fetching presence', e);
+            return [];
         }
     }
 
     renderPresence(members) {
         const container = document.getElementById('presenceBubbles');
         if (!container) return;
+        this.members = members;
+    this.membersLoaded = true;
         container.innerHTML = '';
         members.forEach(m => {
             const el = document.createElement('div');
@@ -486,6 +567,244 @@ class InvestigationApp {
             el.appendChild(dot);
             container.appendChild(el);
         });
+
+        if (this.isOwner) {
+            this.renderMemberAccessList();
+        }
+    }
+
+    renderMemberAccessList() {
+        if (!this.isOwner) return;
+        const container = document.getElementById('investigationMembersList');
+        if (!container) return;
+
+        if (!this.membersLoaded) {
+            container.innerHTML = '<div class="text-sm text-slate-400">Chargement des membres...</div>';
+            return;
+        }
+
+        if (!Array.isArray(this.members) || this.members.length === 0) {
+            container.innerHTML = '<div class="text-sm text-slate-400">Aucun membre pour le moment.</div>';
+            return;
+        }
+
+        const roleLabels = {
+            owner: 'Propriétaire',
+            admin: 'Administrateur',
+            member: 'Membre',
+            viewer: 'Observateur'
+        };
+
+        container.innerHTML = '';
+
+        this.members.forEach(member => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between bg-slate-900/60 border border-slate-700 rounded-lg px-4 py-3';
+
+            const info = document.createElement('div');
+            info.className = 'flex items-center gap-3';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-sm text-white overflow-hidden';
+            if (member.avatar) {
+                const img = document.createElement('img');
+                img.src = member.avatar;
+                img.alt = member.username;
+                img.className = 'w-full h-full object-cover';
+                avatar.appendChild(img);
+            } else {
+                avatar.textContent = (member.username || '?').charAt(0).toUpperCase();
+            }
+
+            const details = document.createElement('div');
+            details.className = 'flex flex-col';
+
+            const nameLine = document.createElement('div');
+            nameLine.className = 'flex items-center gap-2';
+            const name = document.createElement('span');
+            name.className = 'text-sm font-semibold text-slate-100';
+            name.textContent = member.username || 'Utilisateur';
+
+            const roleBadge = document.createElement('span');
+            roleBadge.className = 'px-2 py-0.5 text-[11px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 uppercase tracking-wide';
+            roleBadge.textContent = roleLabels[member.role] || member.role;
+
+            nameLine.appendChild(name);
+            nameLine.appendChild(roleBadge);
+
+            const status = document.createElement('span');
+            status.className = `text-xs ${member.online ? 'text-emerald-400' : 'text-slate-500'}`;
+            status.textContent = member.online ? 'En ligne' : 'Hors ligne';
+
+            details.appendChild(nameLine);
+            details.appendChild(status);
+
+            info.appendChild(avatar);
+            info.appendChild(details);
+            row.appendChild(info);
+
+            const canRemove = this.isOwner && member.role !== 'owner' && String(member.id) !== String(this.currentUserId);
+            const actions = document.createElement('div');
+            actions.className = 'flex items-center gap-2';
+
+            if (canRemove) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'px-3 py-2 text-sm bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors flex items-center gap-2';
+                removeBtn.innerHTML = '<i class="fas fa-user-slash"></i><span>Retirer l\'accès</span>';
+                removeBtn.addEventListener('click', () => this.revokeMember(member.id, removeBtn));
+                actions.appendChild(removeBtn);
+            } else {
+                const hint = document.createElement('span');
+                hint.className = 'text-xs text-slate-500';
+                hint.textContent = member.role === 'owner' ? 'Propriétaire' : 'Accès non modifiable';
+                actions.appendChild(hint);
+            }
+
+            row.appendChild(actions);
+            container.appendChild(row);
+        });
+    }
+
+    openInvestigationSettingsModal() {
+        if (!this.isOwner) return;
+        const modal = document.getElementById('investigationSettingsModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        this.renderMemberAccessList();
+        this.fetchPresence().catch(() => {});
+    }
+
+    closeInvestigationSettingsModal() {
+        const modal = document.getElementById('investigationSettingsModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+    }
+
+    updateInvestigationCode(newCode) {
+        if (!newCode) return;
+        const codeBtn = document.getElementById('investigationCodeBtn');
+        if (codeBtn) {
+            if (codeBtn._copyTimeout) {
+                clearTimeout(codeBtn._copyTimeout);
+                codeBtn._copyTimeout = null;
+            }
+            const label = codeBtn.querySelector('[data-code-display]');
+            if (label) {
+                label.textContent = newCode;
+            }
+            codeBtn.dataset.code = newCode;
+            codeBtn.dataset.originalLabel = newCode;
+            codeBtn.title = `Code : ${newCode}`;
+
+            const icon = codeBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-check');
+                if (!icon.classList.contains('fa-copy')) {
+                    icon.classList.add('fa-copy');
+                }
+            }
+
+            codeBtn.classList.remove('text-emerald-300', 'border-emerald-500/60', 'bg-emerald-500/10');
+            if (!codeBtn.classList.contains('text-blue-400')) {
+                codeBtn.classList.add('text-blue-400');
+            }
+            codeBtn.classList.add('hover:text-blue-300', 'border-blue-500/40');
+        }
+
+        const settingsCode = document.getElementById('investigationSettingsCode');
+        if (settingsCode) {
+            settingsCode.textContent = newCode;
+        }
+    }
+
+    async revokeMember(userId, buttonEl) {
+        if (!this.isOwner || !userId) return;
+
+        const confirmation = window.confirm("Retirer l'accès à cette personne ?\nLe code de l'enquête sera régénéré.");
+        if (!confirmation) {
+            return;
+        }
+
+        let originalContent = '';
+        if (buttonEl) {
+            originalContent = buttonEl.innerHTML;
+            buttonEl.disabled = true;
+            buttonEl.innerHTML = '<span class="flex items-center gap-2"><i class="fas fa-spinner fa-spin"></i><span>Suppression...</span></span>';
+        }
+
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/members/${userId}/revoke/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({})
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.error || "Impossible de retirer ce membre");
+            }
+
+            if (payload.code) {
+                this.updateInvestigationCode(payload.code);
+            }
+
+            this.showNotification(payload.message || "Accès retiré", 'success');
+            await this.fetchPresence();
+        } catch (error) {
+            console.error('Error revoking member:', error);
+            this.showNotification(error.message || "Erreur lors du retrait d'accès", 'error');
+        } finally {
+            if (buttonEl) {
+                buttonEl.disabled = false;
+                buttonEl.innerHTML = originalContent || '<i class="fas fa-user-slash"></i><span>Retirer l\'accès</span>';
+            }
+        }
+    }
+
+    async deleteInvestigation() {
+        if (!this.isOwner) return;
+
+        const confirmDelete = window.confirm("Êtes-vous sûr de vouloir supprimer cette enquête ?\nCette action est irréversible.");
+        if (!confirmDelete) return;
+
+        const deleteBtn = document.getElementById('deleteInvestigationBtn');
+        let originalContent = '';
+        if (deleteBtn) {
+            originalContent = deleteBtn.innerHTML;
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<span class="flex items-center gap-2"><i class="fas fa-spinner fa-spin"></i><span>Suppression...</span></span>';
+        }
+
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.error || "Impossible de supprimer l'enquête");
+            }
+
+            const redirectUrl = payload.redirect || '/dashboard/';
+            window.location.href = redirectUrl;
+        } catch (error) {
+            console.error('Error deleting investigation:', error);
+            this.showNotification(error.message || "Erreur lors de la suppression de l'enquête", 'error');
+        } finally {
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = originalContent || '<i class="fas fa-trash mr-2"></i>Supprimer l\'enquête';
+            }
+        }
     }
 
     startPresence() {
@@ -1814,6 +2133,14 @@ function openAddTypeModal() {
 
 function closeAddTypeModal() {
     app.closeAddTypeModal();
+}
+
+function openInvestigationSettingsModal() {
+    app.openInvestigationSettingsModal();
+}
+
+function closeInvestigationSettingsModal() {
+    app.closeInvestigationSettingsModal();
 }
 
 // Initialize app

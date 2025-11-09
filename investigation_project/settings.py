@@ -178,7 +178,10 @@ CORS_ALLOWED_ORIGINS = csv_list(
 
 # CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = csv_list(
-    config('CSRF_TRUSTED_ORIGINS', default='https://investigation.raspotin.com')
+    config(
+        'CSRF_TRUSTED_ORIGINS',
+        default='https://investigation.raspotin.com,http://localhost:8000,http://127.0.0.1:8000'
+    )
 )
 
 # Custom user model
