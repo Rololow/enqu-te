@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-bg min-h-screen flex items-center justify-center relative">
+    <div class="floating-element absolute top-20 left-10">
+        <div class="w-16 h-16 bg-blue-500/20 rounded-full blur-xl"></div>
+    </div>
+    <div class="floating-element absolute bottom-20 right-10" style="animation-delay: -2s;">
+        <div class="w-20 h-20 bg-purple-500/20 rounded-full blur-xl"></div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto px-4 text-center z-10">
+        <div class="glass-card rounded-3xl p-8 md:p-12">
+            <div class="mb-8">
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                    <i class="fas fa-search text-3xl text-white"></i>
+                </div>
+                <h2 class="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    Enquêtes Collaboratives
+                </h2>
+                <p class="text-slate-300 text-lg mb-8">
+                    Organisez, visualisez et résolvez vos enquêtes avec puissance et élégance
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Join Investigation -->
+                <div class="investigation-card bg-slate-800/60 rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-green-500 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-sign-in-alt text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Rejoindre une enquête</h3>
+                    <p class="text-slate-400 mb-4">Entrez le code d'une enquête existante</p>
+                    <form method="post" action="{% url 'join_investigation' %}">
+                        {% csrf_token %}
+                        <div class="space-y-3">
+                            <input type="text" name="code" placeholder="Code d'enquête" required
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                            <button type="submit" 
+                                    class="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-all pulse-glow">
+                                Rejoindre
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Create Investigation -->
+                <div class="investigation-card bg-slate-800/60 rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-plus text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Créer une enquête</h3>
+                    <p class="text-slate-400 mb-4">Démarrez une nouvelle investigation</p>
+                    <a href="{% url 'create_investigation' %}" 
+                       class="block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-all text-center">
+                        Créer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

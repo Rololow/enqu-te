@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RoroEnquête{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .hero-bg {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%23374151" stroke-width="0.5" opacity="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            animation: gridMove 20s linear infinite;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(10px, 10px); }
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .investigation-card {
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        
+        .investigation-card:hover {
+            transform: translateY(-5px) rotateX(5deg);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .floating-element {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .pulse-glow {
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+            to { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+        }
+        
+        .timeline-calendar {
+            position: relative;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.05);
+            padding: 1.5rem 1rem 2.5rem;
+        }
+
+        .timeline-calendar::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .timeline-calendar::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 9999px;
+        }
+
+        .timeline-calendar-inner {
+            position: relative;
+            min-width: 100%;
+        }
+
+        .timeline-axis {
+            position: relative;
+            height: 48px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .timeline-axis-tick {
+            position: absolute;
+            bottom: 0;
+            width: 1px;
+            height: 20px;
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.8), rgba(167, 139, 250, 0.8));
+        }
+
+        .timeline-axis-tick.major {
+            height: 28px;
+            background: linear-gradient(180deg, rgba(94, 234, 212, 0.8), rgba(96, 165, 250, 0.8));
+        }
+
+        .timeline-axis-label {
+            position: absolute;
+            bottom: -28px;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: rgba(226, 232, 240, 0.8);
+            white-space: nowrap;
+        }
+
+        .timeline-gridline {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(180deg, rgba(148, 163, 184, 0.3), rgba(148, 163, 184, 0));
+        }
+
+        .timeline-events {
+            position: relative;
+            margin-top: 2rem;
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-event {
+            position: absolute;
+            top: 0;
+            min-width: 140px;
+            max-width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(147, 197, 253, 0.7));
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            backdrop-filter: blur(6px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .timeline-event:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 40px rgba(37, 99, 235, 0.45);
+        }
+
+        .timeline-event.timeslot {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.85), rgba(59, 130, 246, 0.7));
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .timeline-event.point {
+            min-width: 0;
+            width: 12px;
+            padding: 0;
+            border-radius: 9999px;
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9), rgba(30, 64, 175, 0.9));
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.35);
+        }
+
+        .timeline-event.point .timeline-event-content {
+            display: none;
+        }
+
+        .timeline-event.point::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            bottom: 6px;
+            left: 50%;
+            width: 3px;
+            border-radius: 9999px;
+            transform: translateX(-50%);
+            background: linear-gradient(180deg, rgba(148, 163, 184, 0.8), rgba(59, 130, 246, 0.9));
+        }
+
+        .timeline-event::after {
+            content: attr(data-title);
+            position: absolute;
+            top: -1.75rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.9);
+            color: rgba(226, 232, 240, 0.85);
+            font-size: 0.65rem;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .timeline-event:hover::after {
+            opacity: 1;
+        }
+
+        .timeline-event-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .timeline-event-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .timeline-event-time {
+            font-size: 0.75rem;
+            color: rgba(226, 232, 240, 0.85);
+        }
+
+        .timeline-empty {
+            border: 1px dashed rgba(148, 163, 184, 0.25);
+            border-radius: 1rem;
+            background: rgba(15, 23, 42, 0.4);
+            margin-top: 1.5rem;
+        }
+        
+        .network-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .network-node:hover {
+            transform: scale(1.1);
+        }
+        
+        .connection-line {
+            stroke: #60a5fa;
+            stroke-width: 2;
+            opacity: 0.6;
+            animation: dash 2s linear infinite;
+        }
+        
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+        
+        .dropdown-menu {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .notification {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-slate-800/80 backdrop-blur-md border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-search text-white text-lg"></i>
+                    </div>
+                    <h1 class="text-xl font-bold">RoroEnquête</h1>
+                </div>
+                
+                {% if user.is_authenticated %}
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <button id="userMenuBtn" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                            {% if user.avatar %}
+                                <img src="{{ user.avatar.url }}" alt="Avatar" class="w-8 h-8 rounded-full">
+                            {% else %}
+                                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-sm"></i>
+                                </div>
+                            {% endif %}
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 dropdown-menu rounded-lg shadow-lg py-2">
+                            <a href="{% url 'dashboard' %}" class="block px-4 py-2 hover:bg-slate-700 transition-colors">
+                                <i class="fas fa-tachometer-alt mr-2"></i>Tableau de bord
+                            </a>
+                            <a href="{% url 'auth' 'logout' %}" class="block px-4 py-2 hover:bg-slate-700 transition-colors text-red-400">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'auth' 'login' %}" class="px-4 py-2 text-slate-300 hover:text-white transition-colors">
+                        Connexion
+                    </a>
+                    <a href="{% url 'auth' 'register' %}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        Inscription
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="pt-16">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    <!--
+        Responsive notifications:
+        - On small screens: center near bottom with safe-area padding to avoid phone status bar / notch.
+        - On larger screens: show top-right as before (but slightly lower than nav).
+    -->
+    <div
+        class="fixed z-50 space-y-2 right-4 sm:right-4 left-4 sm:left-auto mx-auto sm:mx-0 max-w-sm"
+        style="top: calc(3.5rem + env(safe-area-inset-top));">
+        {% for message in messages %}
+        <div class="notification px-6 py-4 rounded-lg shadow-lg {% if message.tags == 'success' %}bg-green-600{% elif message.tags == 'error' %}bg-red-600{% else %}bg-blue-600{% endif %} text-white">
+            <div class="flex items-center space-x-3">
+                {% if message.tags == 'success' %}
+                    <i class="fas fa-check text-xl"></i>
+                {% elif message.tags == 'error' %}
+                    <i class="fas fa-exclamation text-xl"></i>
+                {% else %}
+                    <i class="fas fa-info text-xl"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <script>
+        // User menu toggle
+    const userMenuButton = document.getElementById('userMenuBtn');
+    const userMenu = document.getElementById('userMenu');
+
+        userMenuButton?.addEventListener('click', function(event) {
+            event.stopPropagation();
+            userMenu?.classList.toggle('hidden');
+        });
+
+        userMenu?.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                userMenu.classList.add('hidden');
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (userMenu && userMenuButton && !userMenu.contains(event.target) && !userMenuButton.contains(event.target)) {
+                userMenu.classList.add('hidden');
+            }
+        });
+
+        // Show notifications
+        document.addEventListener('DOMContentLoaded', function() {
+            const notifications = document.querySelectorAll('.notification');
+            notifications.forEach((notification, index) => {
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, index * 100);
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 4000 + index * 100);
+            });
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

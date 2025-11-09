@@ -1,0 +1,1636 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ investigation.title }} - RoroEnquête{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900">
+    <!-- Investigation Header -->
+    <div class="bg-slate-800 border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">{{ investigation.title }}</h1>
+                    <p class="text-slate-400">Code: <span class="font-mono text-blue-400">{{ investigation.code }}</span></p>
+                    <!-- Presence bubbles -->
+                    <div id="presenceBubbles" class="mt-2 flex items-center space-x-2"></div>
+                    {% if investigation.description %}
+                    <p class="text-slate-300 mt-2">{{ investigation.description }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'dashboard' %}" 
+                       class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Retour
+                    </a>
+                </div>
+            </div>
+            
+            <!-- View Toggle -->
+            <div class="flex space-x-2">
+                <button id="timelineBtn" onclick="switchView('timeline')" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg transition-all">
+                    <i class="fas fa-clock mr-2"></i>Timeline
+                </button>
+                <button id="networkBtn" onclick="switchView('network')" 
+                        class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-all">
+                    <i class="fas fa-project-diagram mr-2"></i>Graphe de liens
+                </button>
+                <button id="cardsBtn" onclick="switchView('cards')" 
+                        class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-all">
+                    <i class="fas fa-th-large mr-2"></i>Fiches
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Entity Buttons -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-wrap gap-3 mb-6">
+            <button id="addPrimaryBtn" onclick="openAddTypeModal()"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                <i class="fas fa-plus mr-2"></i>Ajouter
+            </button>
+        </div>
+
+        <!-- Add type selection modal: choose which kind of entity/link to add -->
+        <div id="addTypeModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold">Ajouter</h3>
+                        <button onclick="closeAddTypeModal()" class="text-slate-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="(function(){ openAddModal('person'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-user"></i>
+                                <div>
+                                    <div class="font-semibold">Personne</div>
+                                    <div class="text-slate-400 text-sm">Ajouter une personne</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openAddModal('location'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-amber-600 hover:bg-amber-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <div>
+                                    <div class="font-semibold">Lieu</div>
+                                    <div class="text-slate-400 text-sm">Ajouter un lieu de l'enquête</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openAddModal('evidence'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-file-alt"></i>
+                                <div>
+                                    <div class="font-semibold">Preuve</div>
+                                    <div class="text-slate-400 text-sm">Ajouter une preuve</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openAddModal('event'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-calendar"></i>
+                                <div>
+                                    <div class="font-semibold">Événement</div>
+                                    <div class="text-slate-400 text-sm">Ajouter un événement</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openLinkModal(); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-link"></i>
+                                <div>
+                                    <div class="font-semibold">Lien</div>
+                                    <div class="text-slate-400 text-sm">Créer un lien entre entités</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter dropdown (grouped checkboxes for Personnes, Lieux, Événements) -->
+        <div class="relative mb-6">
+            <button id="filterButton" onclick="toggleFilterDropdown()" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200">
+                <i class="fas fa-filter mr-2"></i>Filtres
+            </button>
+
+            <div id="filterDropdown" class="hidden absolute mt-2 left-0 w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50 p-4">
+                <div class="max-h-64 overflow-auto">
+                    <div class="mb-3">
+                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Personnes</h4>
+                        <div id="personsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                    </div>
+                    <div class="mb-3">
+                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Lieux</h4>
+                        <div id="placesList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                    </div>
+                    <div id="eventsSection" class="mb-3">
+                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Événements</h4>
+                        <div id="eventsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-3">
+                    <button onclick="clearFilters();" class="px-3 py-2 bg-slate-700 rounded text-sm">Effacer</button>
+                    <button onclick="applyFilters(); toggleFilterDropdown();" class="px-3 py-2 bg-blue-600 rounded text-sm text-white">Appliquer</button>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <input type="text" id="searchInput" placeholder="Rechercher..." onkeyup="applyFilters()"
+                       class="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline View -->
+    <div id="timelineView" class="max-w-7xl mx-auto px-6 pb-12">
+        <div id="timelineContainer" class="timeline-calendar overflow-x-auto">
+            <div id="timelineCalendarInner" class="timeline-calendar-inner">
+                <div id="timelineAxis" class="timeline-axis"></div>
+                <div id="timelineEvents" class="timeline-events"></div>
+            </div>
+        </div>
+        <div id="timelineEmptyState" class="timeline-empty hidden">
+            <div class="text-center py-12">
+                <i class="fas fa-calendar text-4xl text-slate-600 mb-4"></i>
+                <p class="text-slate-400">Aucun événement à afficher</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network View -->
+    <div id="networkView" class="hidden max-w-7xl mx-auto px-6 pb-12">
+        <div class="bg-slate-800 rounded-2xl p-6">
+            <div id="networkChart" style="width: 100%; height: 600px;"></div>
+        </div>
+    </div>
+
+    <!-- Cards View -->
+    <div id="cardsView" class="hidden max-w-7xl mx-auto px-6 pb-12">
+        <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<!-- Add Entity Modal -->
+<div id="addModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modalTitle" class="text-xl font-bold"></h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="addForm" onsubmit="addEntity(event)">
+                <div id="formFields">
+                    <!-- Dynamic form fields will be inserted here -->
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                    <button type="submit" 
+                            class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                        Ajouter
+                    </button>
+                    <button type="button" onclick="closeAddModal()" 
+                            class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Link Modal -->
+<div id="linkModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">Ajouter un lien</h3>
+                <button onclick="closeLinkModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="linkForm" onsubmit="addLink(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">De</label>
+                        <select name="from_entity" id="fromEntitySelect" required
+                                class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Vers</label>
+                        <select name="to_entity" id="toEntitySelect" required
+                                class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Type de lien</label>
+                        <input type="text" name="title" placeholder="Ex: a vu, travaille à, propriétaire de" required
+                               class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Description (optionnelle)</label>
+                        <textarea name="description" rows="2"
+                                  class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"></textarea>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                    <button type="submit" 
+                            class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                        Ajouter le lien
+                    </button>
+                    <button type="button" onclick="closeLinkModal()" 
+                            class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Entity Modal -->
+<div id="editModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-md">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">Modifier l'élément</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="editForm" onsubmit="updateEntity(event)">
+                <div id="editFormFields">
+                    <!-- Dynamic edit form fields will be inserted here -->
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                        <button type="submit" 
+                                class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                            Mettre à jour
+                        </button>
+                        <button type="button" onclick="app.deleteEntity(app.editingEntity?.id)"
+                                class="py-3 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">
+                            Supprimer
+                        </button>
+                        <button type="button" onclick="closeEditModal()" 
+                                class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors">
+                            Annuler
+                        </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Investigation App JavaScript
+class InvestigationApp {
+    constructor() {
+        this.investigationId = '{{ investigation.id }}';
+        this.currentView = 'timeline';
+        this.entities = [];
+        this.links = [];
+        this.editingEntity = null;
+        this.networkChart = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.loadData();
+        this.setupEventListeners();
+        this.startPresence();
+        this.startHeartbeat();
+        this.startAutoSync();
+    }
+    
+    setupEventListeners() {
+        // Close modals on outside click
+        document.getElementById('addModal').addEventListener('click', (e) => {
+            if (e.target.id === 'addModal') this.closeAddModal();
+        });
+        
+        document.getElementById('editModal').addEventListener('click', (e) => {
+            if (e.target.id === 'editModal') this.closeEditModal();
+        });
+        
+        document.getElementById('linkModal').addEventListener('click', (e) => {
+            if (e.target.id === 'linkModal') this.closeLinkModal();
+        });
+
+        const addTypeModal = document.getElementById('addTypeModal');
+        if (addTypeModal) {
+            addTypeModal.addEventListener('click', (e) => {
+                if (e.target.id === 'addTypeModal') this.closeAddTypeModal();
+            });
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeAddModal();
+                this.closeEditModal();
+                this.closeLinkModal();
+                this.closeAddTypeModal();
+                document.getElementById('filterDropdown')?.classList.add('hidden');
+            }
+        });
+    }
+    
+    async loadData() {
+        try {
+            const [entitiesResponse, linksResponse] = await Promise.all([
+                fetch(`/api/investigation/${this.investigationId}/entities/`),
+                fetch(`/api/investigation/${this.investigationId}/links/`)
+            ]);
+            
+            this.entities = (await entitiesResponse.json()).entities;
+            this.links = (await linksResponse.json()).links;
+
+            // Populate checkbox filters for persons, locations and events
+            try {
+                const persons = this.entities
+                    .filter(e => e.type === 'person')
+                    .sort((a, b) => a.title.localeCompare(b.title));
+                const personsContainer = document.getElementById('personsList');
+                if (personsContainer) {
+                    personsContainer.innerHTML = '';
+                    persons.forEach(p => {
+                        const id = `filter_person_${p.id}`;
+                        const wrapper = document.createElement('label');
+                        wrapper.className = 'inline-flex items-center space-x-2 px-2 py-1 bg-slate-800/80 hover:bg-slate-700 rounded';
+                        wrapper.innerHTML = `<input type="checkbox" id="${id}" value="${p.id}" onchange="applyFilters()"> <span class="text-slate-300 text-sm">${p.title}</span>`;
+                        personsContainer.appendChild(wrapper);
+                    });
+                }
+
+                const places = this.entities
+                    .filter(e => e.type === 'location')
+                    .sort((a, b) => a.title.localeCompare(b.title));
+                const placesContainer = document.getElementById('placesList');
+                if (placesContainer) {
+                    placesContainer.innerHTML = '';
+                    places.forEach(place => {
+                        const id = `filter_place_${place.id}`;
+                        const wrapper = document.createElement('label');
+                        wrapper.className = 'flex flex-col gap-1 px-2 py-2 bg-slate-800/80 hover:bg-slate-700 rounded';
+                        const subtitle = (place.address || place.location || '').trim();
+                        wrapper.innerHTML = `
+                            <span class="inline-flex items-center space-x-2">
+                                <input type="checkbox" id="${id}" value="${place.id}" onchange="applyFilters()">
+                                <span class="text-slate-300 text-sm">${place.title}</span>
+                            </span>
+                            ${subtitle ? `<span class="pl-6 text-xs text-slate-500">${subtitle}</span>` : ''}
+                        `;
+                        placesContainer.appendChild(wrapper);
+                    });
+                }
+
+                const events = this.entities
+                    .filter(e => e.type === 'event')
+                    .sort((a, b) => a.title.localeCompare(b.title));
+                const eventsContainer = document.getElementById('eventsList');
+                if (eventsContainer) {
+                    eventsContainer.innerHTML = '';
+                    events.forEach(ev => {
+                        const id = `filter_event_${ev.id}`;
+                        const wrapper = document.createElement('label');
+                        wrapper.className = 'inline-flex items-center space-x-2 px-2 py-1 bg-slate-800/80 hover:bg-slate-700 rounded';
+                        wrapper.innerHTML = `<input type="checkbox" id="${id}" value="${ev.id}" onchange="applyFilters()"> <span class="text-slate-300 text-sm">${ev.title}</span>`;
+                        eventsContainer.appendChild(wrapper);
+                    });
+                }
+            } catch (e) {
+                console.warn('Could not populate checkbox filters', e);
+            }
+
+            this.refreshView();
+            // also refresh presence immediately after loading data
+            this.fetchPresence();
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    // Presence polling & heartbeat
+    async fetchPresence() {
+        try {
+            const res = await fetch(`/api/investigation/${this.investigationId}/presence/`);
+            if (!res.ok) return;
+            const data = await res.json();
+            this.renderPresence(data.members || []);
+        } catch (e) {
+            console.error('Error fetching presence', e);
+        }
+    }
+
+    renderPresence(members) {
+        const container = document.getElementById('presenceBubbles');
+        if (!container) return;
+        container.innerHTML = '';
+        members.forEach(m => {
+            const el = document.createElement('div');
+            el.className = 'relative';
+            el.title = (m.username) + (m.online ? ' — en ligne' : ' — hors ligne');
+            const avatar = document.createElement('div');
+            avatar.className = 'w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm text-white overflow-hidden';
+            if (m.avatar) {
+                const img = document.createElement('img');
+                img.src = m.avatar;
+                img.alt = m.username;
+                img.className = 'w-full h-full object-cover';
+                avatar.appendChild(img);
+            } else {
+                avatar.textContent = m.username.charAt(0).toUpperCase();
+            }
+            const dot = document.createElement('span');
+            dot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900';
+            dot.style.backgroundColor = m.online ? '#34d399' : '#6b7280';
+            el.appendChild(avatar);
+            el.appendChild(dot);
+            container.appendChild(el);
+        });
+    }
+
+    startPresence() {
+        // Poll presence every 5 seconds
+        this._presenceInterval = setInterval(() => this.fetchPresence(), 5000);
+    }
+
+    startHeartbeat() {
+        // Send heartbeat every 10 seconds
+        this._heartbeat = setInterval(async () => {
+            try {
+                await fetch(`/api/investigation/${this.investigationId}/presence/heartbeat/`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } });
+            } catch (e) {
+                // ignore
+            }
+        }, 10000);
+        // send initial heartbeat
+        fetch(`/api/investigation/${this.investigationId}/presence/heartbeat/`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } }).catch(()=>{});
+    }
+
+    // Auto-sync polling to pick up changes from other users
+    startAutoSync() {
+        // Poll every 4 seconds for changes (adjust as needed)
+        this._syncInterval = setInterval(() => this.fetchLatestChanges(), 4000);
+        // do an initial poll shortly after load
+        setTimeout(() => this.fetchLatestChanges(), 2000);
+    }
+
+    async fetchLatestChanges() {
+        try {
+            const [entitiesResponse, linksResponse] = await Promise.all([
+                fetch(`/api/investigation/${this.investigationId}/entities/`),
+                fetch(`/api/investigation/${this.investigationId}/links/`)
+            ]);
+
+            if (!entitiesResponse.ok || !linksResponse.ok) return;
+
+            const newEntities = (await entitiesResponse.json()).entities || [];
+            const newLinks = (await linksResponse.json()).links || [];
+
+            let changed = false;
+
+            // Quick length check
+            if (newEntities.length !== this.entities.length) changed = true;
+
+            // If same length, check updated_at for entities
+            if (!changed) {
+                const oldMap = {};
+                this.entities.forEach(e => { oldMap[e.id] = e.updated_at || e.created_at; });
+                for (const ne of newEntities) {
+                    // if updated_at doesn't match or id is new/missing, mark changed
+                    if (!oldMap[ne.id] || oldMap[ne.id] !== ne.updated_at) {
+                        changed = true; break;
+                    }
+                }
+            }
+
+            // Links: check ids set or length change
+            if (!changed) {
+                if (newLinks.length !== this.links.length) changed = true;
+                else {
+                    const oldLinkIds = new Set(this.links.map(l => l.id));
+                    for (const nl of newLinks) {
+                        if (!oldLinkIds.has(nl.id)) { changed = true; break; }
+                    }
+                }
+            }
+
+            if (changed) {
+                // Replace and refresh view
+                this.entities = newEntities;
+                this.links = newLinks;
+                this.refreshView();
+            }
+        } catch (e) {
+            console.error('Error fetching latest changes for auto-sync', e);
+        }
+    }
+    
+    switchView(view) {
+        this.currentView = view;
+        
+        // Update button states
+        document.querySelectorAll('#timelineBtn, #networkBtn, #cardsBtn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-slate-700', 'text-slate-300');
+        });
+        
+        // Hide all views
+        document.getElementById('timelineView').classList.add('hidden');
+        document.getElementById('networkView').classList.add('hidden');
+        document.getElementById('cardsView').classList.add('hidden');
+        
+        // Show selected view
+        switch(view) {
+            case 'timeline':
+                document.getElementById('timelineBtn').classList.remove('bg-slate-700', 'text-slate-300');
+                document.getElementById('timelineBtn').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('timelineView').classList.remove('hidden');
+                this.renderTimeline();
+                break;
+            case 'network':
+                document.getElementById('networkBtn').classList.remove('bg-slate-700', 'text-slate-300');
+                document.getElementById('networkBtn').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('networkView').classList.remove('hidden');
+                this.renderNetwork();
+                break;
+            case 'cards':
+                document.getElementById('cardsBtn').classList.remove('bg-slate-700', 'text-slate-300');
+                document.getElementById('cardsBtn').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('cardsView').classList.remove('hidden');
+                this.renderCards();
+                break;
+        }
+    }
+    
+    refreshView() {
+        this.switchView(this.currentView);
+    }
+    
+    getFilteredEntities() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+    const personChecks = Array.from(document.querySelectorAll('#personsList input[type=checkbox]:checked')).map(i => i.value);
+    const placeChecks = Array.from(document.querySelectorAll('#placesList input[type=checkbox]:checked')).map(i => i.value);
+    const eventChecks = Array.from(document.querySelectorAll('#eventsList input[type=checkbox]:checked')).map(i => i.value);
+
+        const forceTimelineEvent = (this.currentView === 'timeline');
+
+    const selectedPersons = new Set(personChecks.map(String));
+    const selectedPlaces = new Set(placeChecks.map(String));
+    const selectedEvents = new Set(eventChecks.map(String));
+
+        const focusIds = new Set([...selectedPersons, ...selectedPlaces]);
+
+        let filtered = this.entities;
+
+        if (focusIds.size > 0) {
+            const linkedIds = new Set(focusIds);
+            this.links.forEach(link => {
+                const fromId = String(link.from_entity.id);
+                const toId = String(link.to_entity.id);
+                if (focusIds.has(fromId) || focusIds.has(toId)) {
+                    linkedIds.add(fromId);
+                    linkedIds.add(toId);
+                }
+            });
+
+            filtered = filtered.filter(entity => linkedIds.has(String(entity.id)));
+        }
+
+        return filtered.filter(entity => {
+            const entityId = String(entity.id);
+            if (forceTimelineEvent && entity.type !== 'event') return false;
+
+            const linkedLocations = this.getLinkedLocations(entityId);
+
+            if (selectedPlaces.size > 0) {
+                if (entity.type === 'location') {
+                    if (!selectedPlaces.has(entityId)) {
+                        return false;
+                    }
+                } else if (!selectedPersons.has(entityId)) {
+                    const linkedIds = linkedLocations.map(loc => String(loc.id));
+                    if (!linkedIds.some(id => selectedPlaces.has(id))) {
+                        return false;
+                    }
+                }
+            }
+
+            const matchesEvent = selectedEvents.size === 0 || entity.type !== 'event' || selectedEvents.has(entityId);
+            const searchPool = [
+                entity.title || '',
+                entity.description || '',
+                entity.location || '',
+                entity.event_end_date || '',
+                entity.address || '',
+                entity.role || '',
+                ...linkedLocations.map(loc => `${loc.title} ${loc.address || ''}`)
+            ].join(' ').toLowerCase();
+            const matchesSearch = !searchTerm || searchPool.includes(searchTerm);
+
+            return matchesEvent && matchesSearch;
+        });
+    }
+    
+    getLinkedLocations(entityId) {
+        const targetId = String(entityId);
+        const seen = new Set();
+        const locations = [];
+
+        this.links.forEach(link => {
+            const fromId = String(link.from_entity.id);
+            const toId = String(link.to_entity.id);
+
+            if (fromId === targetId && link.to_entity.type === 'location') {
+                if (!seen.has(link.to_entity.id)) {
+                    seen.add(link.to_entity.id);
+                    locations.push(link.to_entity);
+                }
+            }
+
+            if (toId === targetId && link.from_entity.type === 'location') {
+                if (!seen.has(link.from_entity.id)) {
+                    seen.add(link.from_entity.id);
+                    locations.push(link.from_entity);
+                }
+            }
+        });
+
+        return locations;
+    }
+    
+    renderTimeline() {
+        const container = document.getElementById('timelineContainer');
+        const filteredEntities = this.getFilteredEntities();
+        
+        // Filter and sort events by date
+        const events = filteredEntities
+            .filter(e => e.type === 'event' && e.event_date)
+            .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+        
+        if (events.length === 0) {
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-64">
+                    <div class="text-center">
+                        <i class="fas fa-calendar text-4xl text-slate-600 mb-4"></i>
+                        <p class="text-slate-400">Aucun événement à afficher</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = events.map((event, index) => {
+            const startDate = event.event_date ? new Date(event.event_date) : null;
+            const endDate = event.event_end_date ? new Date(event.event_end_date) : null;
+            const hasDuration = Boolean(startDate && endDate);
+            const linkedLocations = this.getLinkedLocations(event.id);
+
+            const marker = hasDuration
+                ? '<div class="timeline-marker-duration absolute -top-6 left-1/2 -translate-x-1/2"></div>'
+                : '<div class="timeline-marker-point absolute -top-10 left-1/2 -translate-x-1/2"></div>';
+
+            const formatOptions = {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+
+            const startLabel = startDate ? startDate.toLocaleString('fr-FR', formatOptions) : 'Date non précisée';
+            const endLabel = endDate ? endDate.toLocaleString('fr-FR', formatOptions) : '';
+
+            const dateMarkup = hasDuration
+                ? `<p class="text-emerald-300 text-sm mb-2">Du ${startLabel}<br><span class="text-emerald-200">au ${endLabel}</span></p>`
+                : `<p class="text-purple-300 text-sm mb-2">${event.is_timeslot ? 'Créneau le' : 'Le'} ${startLabel}</p>`;
+
+            const metaTags = [
+                hasDuration ? '<span class="px-2 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-200">Durée</span>' : '',
+                event.is_timeslot ? '<span class="px-2 py-1 text-xs rounded-full bg-sky-500/20 text-sky-200">Créneau approximatif</span>' : ''
+            ].filter(Boolean);
+
+            const metaMarkup = metaTags.length ? `<div class="flex flex-wrap gap-2 mb-3">${metaTags.join('')}</div>` : '';
+
+            const locationMarkup = linkedLocations.length ? `
+                <div class="flex flex-wrap gap-2 mb-2">
+                    ${linkedLocations.map(loc => `
+                        <span class="inline-flex items-center px-2 py-1 bg-amber-600/20 text-amber-300 text-xs rounded-full">
+                            <i class="fas fa-map-marker-alt mr-1"></i>${loc.title}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const cardAccent = hasDuration ? 'border border-emerald-500/40 shadow-lg shadow-emerald-500/10' : 'border border-purple-500/30 shadow-lg shadow-purple-500/10';
+
+            return `
+                <div class="timeline-item-horizontal bg-slate-800 rounded-xl p-6 relative ${cardAccent}" style="animation-delay: ${index * 0.1}s">
+                    ${marker}
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-white mb-2">${event.title}</h3>
+                        ${dateMarkup}
+                        ${metaMarkup}
+                        ${locationMarkup}
+                    </div>
+                    
+                    ${event.description ? `<p class="text-slate-300 text-sm mb-4">${event.description}</p>` : ''}
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex space-x-2">
+                            <button onclick="app.editEntity('${event.id}')" 
+                                    class="p-2 text-blue-400 hover:text-blue-300 transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                        <button onclick="app.openLinkModal('${event.id}')" 
+                                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
+                            <i class="fas fa-link mr-1"></i>Lien
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Animate timeline items
+        setTimeout(() => {
+            document.querySelectorAll('.timeline-item-horizontal').forEach(item => {
+                item.classList.add('animate');
+            });
+        }, 100);
+    }
+    
+    renderNetwork() {
+        if (!this.networkChart) {
+            this.networkChart = echarts.init(document.getElementById('networkChart'));
+        }
+        
+        const filteredEntities = this.getFilteredEntities();
+        
+        if (filteredEntities.length === 0) {
+            this.networkChart.setOption({
+                title: {
+                    text: 'Aucune donnée à afficher',
+                    left: 'center',
+                    top: 'middle',
+                    textStyle: {
+                        color: '#94a3b8',
+                        fontSize: 18
+                    }
+                }
+            });
+            return;
+        }
+        
+        const nodes = [];
+        const links = [];
+        const nodeIds = new Set();
+        
+        // Create nodes
+        filteredEntities.forEach(entity => {
+            const nodeId = entity.id;
+            let symbolSize = 30;
+            let color = '#60a5fa';
+            
+            switch(entity.type) {
+                case 'person':
+                    color = '#34d399';
+                    symbolSize = 40;
+                    break;
+                case 'location':
+                    color = '#f97316';
+                    symbolSize = 38;
+                    break;
+                case 'evidence':
+                    color = '#fbbf24';
+                    symbolSize = 35;
+                    break;
+                case 'event':
+                    color = '#a78bfa';
+                    symbolSize = 45;
+                    break;
+            }
+            
+            nodes.push({
+                id: nodeId,
+                name: entity.title,
+                category: entity.type,
+                symbolSize: symbolSize,
+                itemStyle: {
+                    color: color
+                }
+            });
+            
+            nodeIds.add(nodeId);
+        });
+        
+        // Create links from our links data
+        this.links.forEach(link => {
+            if (nodeIds.has(link.from_entity.id) && nodeIds.has(link.to_entity.id)) {
+                links.push({
+                    source: link.from_entity.id,
+                    target: link.to_entity.id,
+                    name: link.title,
+                    lineStyle: {
+                        color: '#60a5fa',
+                        opacity: 0.6,
+                        width: 2
+                    }
+                });
+            }
+        });
+        
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    if (params.dataType === 'node') {
+                        return `<strong>${params.data.name}</strong><br/>Type: ${params.data.category}`;
+                    } else {
+                        return `Lien: ${params.data.name}`;
+                    }
+                },
+                backgroundColor: '#1e293b',
+                borderColor: '#475569',
+                textStyle: {
+                    color: '#e2e8f0'
+                }
+            },
+            legend: {
+                data: ['person', 'location', 'evidence', 'event'],
+                orient: 'vertical',
+                left: 'left',
+                top: 'top',
+                textStyle: {
+                    color: '#94a3b8'
+                }
+            },
+            series: [{
+                type: 'graph',
+                layout: 'force',
+                data: nodes,
+                links: links,
+                categories: [
+                    { name: 'person', itemStyle: { color: '#34d399' } },
+                    { name: 'location', itemStyle: { color: '#f97316' } },
+                    { name: 'evidence', itemStyle: { color: '#fbbf24' } },
+                    { name: 'event', itemStyle: { color: '#a78bfa' } }
+                ],
+                roam: true,
+                force: {
+                    repulsion: 100,
+                    gravity: 0.1,
+                    edgeLength: 150,
+                    layoutAnimation: true
+                },
+                label: {
+                    show: true,
+                    position: 'bottom',
+                    formatter: '{b}',
+                    color: '#e2e8f0',
+                    fontSize: 12
+                },
+                emphasis: {
+                    focus: 'adjacency',
+                    lineStyle: {
+                        width: 4
+                    }
+                }
+            }]
+        };
+        
+        this.networkChart.setOption(option);
+    }
+    
+    renderCards() {
+        const container = document.getElementById('cardsContainer');
+        const filteredEntities = this.getFilteredEntities();
+        
+        if (filteredEntities.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-inbox text-4xl text-slate-600 mb-4"></i>
+                    <p class="text-slate-400">Aucun élément à afficher</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = filteredEntities.map(entity => {
+            let icon = '';
+            let color = '';
+            let content = '';
+            
+            switch(entity.type) {
+                case 'person':
+                    icon = 'fas fa-user';
+                    color = 'green';
+                    content = `
+                        <h3 class="text-xl font-bold text-white mb-2">${entity.title}</h3>
+                        ${entity.role ? `<p class="text-green-400 text-sm mb-2">${entity.role}</p>` : ''}
+                        ${entity.description ? `<p class="text-slate-300 text-sm mb-4">${entity.description}</p>` : ''}
+                    `;
+                    break;
+                case 'location':
+                    icon = 'fas fa-map-marker-alt';
+                    color = 'amber';
+                    content = `
+                        <h3 class="text-xl font-bold text-white mb-2">${entity.title}</h3>
+                        ${entity.location ? `<p class="text-amber-400 text-sm mb-2"><i class="fas fa-map-pin mr-1"></i>${entity.location}</p>` : ''}
+                        ${entity.address ? `<p class="text-slate-400 text-sm mb-2">${entity.address}</p>` : ''}
+                        ${entity.description ? `<p class="text-slate-300 text-sm mb-4">${entity.description}</p>` : ''}
+                    `;
+                    break;
+                case 'evidence':
+                    icon = 'fas fa-file-alt';
+                    color = 'yellow';
+                    content = `
+                        <h3 class="text-xl font-bold text-white mb-2">${entity.title}</h3>
+                        ${entity.evidence_type ? `<p class="text-yellow-400 text-sm mb-2">${entity.evidence_type}</p>` : ''}
+                        ${entity.description ? `<p class="text-slate-300 text-sm mb-4">${entity.description}</p>` : ''}
+                    `;
+                    break;
+                case 'event': {
+                    icon = 'fas fa-calendar';
+                    color = 'purple';
+                    const eventLocations = this.getLinkedLocations(entity.id);
+                    const locationChips = eventLocations.length ? `
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            ${eventLocations.map(loc => `
+                                <span class="inline-flex items-center px-2 py-1 bg-amber-600/20 text-amber-300 text-xs rounded-full">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>${loc.title}
+                                </span>
+                            `).join('')}
+                        </div>
+                    ` : '';
+                    const startDate = entity.event_date ? new Date(entity.event_date) : null;
+                    const endDate = entity.event_end_date ? new Date(entity.event_end_date) : null;
+                    const hasDuration = Boolean(startDate && endDate);
+                    const formatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                    const startLabel = startDate ? startDate.toLocaleString('fr-FR', formatOptions) : null;
+                    const endLabel = endDate ? endDate.toLocaleString('fr-FR', formatOptions) : null;
+                    const dateMarkup = startLabel ? (
+                        hasDuration
+                            ? `<p class="text-purple-300 text-sm mb-2">Du ${startLabel}<br><span class="text-purple-200">au ${endLabel}</span></p>`
+                            : `<p class="text-purple-300 text-sm mb-2">${entity.is_timeslot ? 'Créneau le' : 'Le'} ${startLabel}</p>`
+                    ) : '<p class="text-purple-300 text-sm mb-2">Date non précisée</p>';
+                    const metaTags = [
+                        hasDuration ? '<span class="px-2 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-200">Durée</span>' : '',
+                        entity.is_timeslot ? '<span class="px-2 py-1 text-xs rounded-full bg-sky-500/20 text-sky-200">Créneau approximatif</span>' : ''
+                    ].filter(Boolean);
+                    const metaMarkup = metaTags.length ? `<div class="flex flex-wrap gap-2 mb-2">${metaTags.join('')}</div>` : '';
+                    content = `
+                        <h3 class="text-xl font-bold text-white mb-2">${entity.title}</h3>
+                        ${dateMarkup}
+                        ${metaMarkup}
+                        ${locationChips}
+                        ${entity.description ? `<p class="text-slate-300 text-sm mb-4">${entity.description}</p>` : ''}
+                    `;
+                    break;
+                }
+            }
+            
+            return `
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-${color}-500 transition-all duration-300 transform hover:scale-105">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="w-12 h-12 bg-${color}-600 rounded-lg flex items-center justify-center">
+                            <i class="${icon} text-white text-xl"></i>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="app.editEntity('${entity.id}')" 
+                                    class="p-2 text-blue-400 hover:text-blue-300 transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    ${content}
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <p class="text-xs text-slate-500">
+                            Créé le ${new Date(entity.created_at).toLocaleDateString('fr-FR')}
+                        </p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Animate cards
+        anime({
+            targets: '#cardsContainer > div',
+            translateY: [50, 0],
+            opacity: [0, 1],
+            delay: anime.stagger(100),
+            duration: 600,
+            easing: 'easeOutExpo'
+        });
+    }
+    
+    openAddModal(type) {
+        const modal = document.getElementById('addModal');
+        const title = document.getElementById('modalTitle');
+        const fields = document.getElementById('formFields');
+        
+        let fieldHTML = '';
+        let modalTitle = '';
+        
+        switch(type) {
+            case 'person':
+                modalTitle = 'Ajouter une personne';
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nom</label>
+                            <input type="text" name="title" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Rôle</label>
+                            <input type="text" name="role" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'location':
+                modalTitle = 'Ajouter un lieu';
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nom du lieu</label>
+                            <input type="text" name="title" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Zone / Ville</label>
+                            <input type="text" name="location" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Adresse</label>
+                            <input type="text" name="address" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'evidence':
+                modalTitle = 'Ajouter une preuve';
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Titre</label>
+                            <input type="text" name="title" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Type</label>
+                            <select name="evidence_type" 
+                                    class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                                <option value="document">Document</option>
+                                <option value="photo">Photo</option>
+                                <option value="video">Vidéo</option>
+                                <option value="audio">Audio</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'event':
+                modalTitle = 'Ajouter un événement';
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Titre</label>
+                            <input type="text" name="title" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Début</label>
+                            <input type="datetime-local" name="event_date" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Fin (optionnel)</label>
+                            <input type="datetime-local" name="event_end_date"
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"></textarea>
+                        </div>
+                        <label class="flex items-center space-x-3 text-sm text-slate-300">
+                            <input type="checkbox" name="is_timeslot" class="h-4 w-4 text-blue-500 border border-slate-500 rounded">
+                            <span>Cet événement est un créneau approximatif</span>
+                        </label>
+                        <p class="text-xs text-slate-400">Associez ensuite un lieu via le bouton « Lien ».</p>
+                    </div>
+                `;
+                break;
+        }
+        
+        title.textContent = modalTitle;
+        fields.innerHTML = fieldHTML;
+        modal.dataset.type = type;
+        modal.classList.remove('hidden');
+    }
+    
+    closeAddModal() {
+        document.getElementById('addModal').classList.add('hidden');
+    }
+
+    openAddTypeModal() {
+        document.getElementById('addTypeModal')?.classList.remove('hidden');
+    }
+
+    closeAddTypeModal() {
+        document.getElementById('addTypeModal')?.classList.add('hidden');
+    }
+    
+    async addEntity(event) {
+        event.preventDefault();
+        
+        const modal = document.getElementById('addModal');
+        const type = modal.dataset.type;
+        const formData = new FormData(event.target);
+        
+        const data = {
+            type: type,
+            title: formData.get('title'),
+            description: formData.get('description') || '',
+            role: formData.get('role') || '',
+            location: formData.get('location') || '',
+            address: formData.get('address') || '',
+            event_date: formData.get('event_date') || null,
+            event_end_date: formData.get('event_end_date') || null,
+            is_timeslot: formData.get('is_timeslot') === 'on',
+            evidence_type: formData.get('evidence_type') || ''
+        };
+        
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/entities/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                this.closeAddModal();
+                await this.loadData();
+                this.showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} ajouté(e) avec succès !`, 'success');
+            } else {
+                throw new Error('Failed to add entity');
+            }
+        } catch (error) {
+            console.error('Error adding entity:', error);
+            this.showNotification('Erreur lors de l\'ajout', 'error');
+        }
+    }
+    
+    async openLinkModal(entityId = null) {
+        const modal = document.getElementById('linkModal');
+        const fromSelect = document.getElementById('fromEntitySelect');
+        const toSelect = document.getElementById('toEntitySelect');
+        
+        // Populate entity selects
+        const options = this.entities.map(entity => {
+            const labels = {
+                person: 'Personne',
+                location: 'Lieu',
+                evidence: 'Preuve',
+                event: 'Événement'
+            };
+            const typeLabel = labels[entity.type] || entity.type;
+            return `<option value="${entity.id}">${entity.title} (${typeLabel})</option>`;
+        }).join('');
+        
+        fromSelect.innerHTML = options;
+        toSelect.innerHTML = options;
+        
+        if (entityId) {
+            fromSelect.value = entityId;
+        }
+        
+        modal.classList.remove('hidden');
+    }
+    
+    closeLinkModal() {
+        document.getElementById('linkModal').classList.add('hidden');
+    }
+    
+    async addLink(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(event.target);
+        const data = {
+            from_entity_id: formData.get('from_entity'),
+            to_entity_id: formData.get('to_entity'),
+            title: formData.get('title'),
+            description: formData.get('description') || ''
+        };
+        
+        if (data.from_entity_id === data.to_entity_id) {
+            this.showNotification('Impossible de créer un lien vers la même entité', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/links/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                this.closeLinkModal();
+                await this.loadData();
+                this.showNotification('Lien créé avec succès !', 'success');
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add link');
+            }
+        } catch (error) {
+            console.error('Error adding link:', error);
+            this.showNotification(error.message || 'Erreur lors de la création du lien', 'error');
+        }
+    }
+    
+    async editEntity(id) {
+        const entity = this.entities.find(e => e.id === id);
+        if (!entity) return;
+        
+        this.editingEntity = entity;
+        const modal = document.getElementById('editModal');
+        const fields = document.getElementById('editFormFields');
+        
+        let fieldHTML = '';
+        
+        switch(entity.type) {
+            case 'person':
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nom</label>
+                            <input type="text" name="title" value="${entity.title}" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Rôle</label>
+                            <input type="text" name="role" value="${entity.role || ''}" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">${entity.description || ''}</textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'location':
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Nom du lieu</label>
+                            <input type="text" name="title" value="${entity.title}" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Zone / Ville</label>
+                            <input type="text" name="location" value="${entity.location || ''}" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Adresse</label>
+                            <input type="text" name="address" value="${entity.address || ''}" 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">${entity.description || ''}</textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'evidence':
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Titre</label>
+                            <input type="text" name="title" value="${entity.title}" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Type</label>
+                            <select name="evidence_type" 
+                                    class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                                <option value="document" ${entity.evidence_type === 'document' ? 'selected' : ''}>Document</option>
+                                <option value="photo" ${entity.evidence_type === 'photo' ? 'selected' : ''}>Photo</option>
+                                <option value="video" ${entity.evidence_type === 'video' ? 'selected' : ''}>Vidéo</option>
+                                <option value="audio" ${entity.evidence_type === 'audio' ? 'selected' : ''}>Audio</option>
+                                <option value="other" ${entity.evidence_type === 'other' ? 'selected' : ''}>Autre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">${entity.description || ''}</textarea>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'event':
+                fieldHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Titre</label>
+                            <input type="text" name="title" value="${entity.title}" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Début</label>
+                            <input type="datetime-local" name="event_date" value="${entity.event_date ? entity.event_date.replace('Z', '').slice(0, 16) : ''}" required 
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Fin (optionnel)</label>
+                            <input type="datetime-local" name="event_end_date" value="${entity.event_end_date ? entity.event_end_date.replace('Z', '').slice(0, 16) : ''}"
+                                   class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Description</label>
+                            <textarea name="description" rows="3"
+                                      class="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none">${entity.description || ''}</textarea>
+                        </div>
+                        <label class="flex items-center space-x-3 text-sm text-slate-300">
+                            <input type="checkbox" name="is_timeslot" ${entity.is_timeslot ? 'checked' : ''} class="h-4 w-4 text-blue-500 border border-slate-500 rounded">
+                            <span>Cet événement est un créneau approximatif</span>
+                        </label>
+                        <p class="text-xs text-slate-400">Associez un lieu à l'événement via un lien dédié.</p>
+                    </div>
+                `;
+                break;
+        }
+        
+        fields.innerHTML = fieldHTML;
+        modal.classList.remove('hidden');
+    }
+    
+    closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+        this.editingEntity = null;
+    }
+    
+    async updateEntity(event) {
+        event.preventDefault();
+        
+        if (!this.editingEntity) return;
+        
+        const formData = new FormData(event.target);
+        const data = {
+            title: formData.get('title'),
+            description: formData.get('description') || '',
+            role: formData.get('role') || '',
+            location: formData.get('location') || '',
+            address: formData.get('address') || '',
+            event_date: formData.get('event_date') || null,
+            event_end_date: formData.get('event_end_date') || null,
+            is_timeslot: formData.get('is_timeslot') === 'on',
+            evidence_type: formData.get('evidence_type') || ''
+        };
+        
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/entity/${this.editingEntity.id}/`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                this.closeEditModal();
+                await this.loadData();
+                this.showNotification('Élément mis à jour avec succès !', 'success');
+            } else {
+                throw new Error('Failed to update entity');
+            }
+        } catch (error) {
+            console.error('Error updating entity:', error);
+            this.showNotification('Erreur lors de la mise à jour', 'error');
+        }
+    }
+    
+    async deleteEntity(id) {
+        if (!id) return;
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/investigation/${this.investigationId}/entity/${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            if (response.ok) {
+                this.closeEditModal();
+                await this.loadData();
+                this.showNotification('Élément supprimé avec succès !', 'success');
+            } else {
+                throw new Error('Failed to delete entity');
+            }
+        } catch (error) {
+            console.error('Error deleting entity:', error);
+            this.showNotification('Erreur lors de la suppression', 'error');
+        }
+    }
+    
+    applyFilters() {
+        this.refreshView();
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-20 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ${
+            type === 'success' ? 'bg-green-600' : 
+            type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        } text-white`;
+        
+        notification.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <i class="fas ${type === 'success' ? 'fa-check' : type === 'error' ? 'fa-exclamation' : 'fa-info'} text-xl"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Global functions
+function switchView(view) {
+    app.switchView(view);
+}
+
+function openAddModal(type) {
+    app.openAddModal(type);
+}
+
+function closeAddModal() {
+    app.closeAddModal();
+}
+
+function addEntity(event) {
+    app.addEntity(event);
+}
+
+function editEntity(id) {
+    app.editEntity(id);
+}
+
+function closeEditModal() {
+    app.closeEditModal();
+}
+
+function updateEntity(event) {
+    app.updateEntity(event);
+}
+
+function deleteEntity(id) {
+    app.deleteEntity(id);
+}
+
+function applyFilters() {
+    app.applyFilters();
+}
+
+function clearFilters() {
+    document.querySelectorAll('#filterDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
+    const search = document.getElementById('searchInput');
+    if (search) {
+        search.value = '';
+    }
+    app.applyFilters();
+}
+
+function openLinkModal(entityId) {
+    app.openLinkModal(entityId);
+}
+
+function closeLinkModal() {
+    app.closeLinkModal();
+}
+
+function addLink(event) {
+    app.addLink(event);
+}
+
+// Toggle the filters dropdown (used by the filter button)
+function toggleFilterDropdown() {
+    const dropdown = document.getElementById('filterDropdown');
+    if (!dropdown) return;
+    dropdown.classList.toggle('hidden');
+}
+
+// Close filter dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const btn = document.getElementById('filterButton');
+    const dropdown = document.getElementById('filterDropdown');
+    if (!dropdown || !btn) return;
+    const target = e.target;
+    if (dropdown.classList.contains('hidden')) return;
+    if (btn.contains(target)) return; // clicked the button
+    if (dropdown.contains(target)) return; // clicked inside dropdown
+    // otherwise close
+    dropdown.classList.add('hidden');
+});
+
+// Add-type modal helpers
+function openAddTypeModal() {
+    app.openAddTypeModal();
+}
+
+function closeAddTypeModal() {
+    app.closeAddTypeModal();
+}
+
+// Initialize app
+const app = new InvestigationApp();
+
+// Handle window resize for network chart
+window.addEventListener('resize', () => {
+    if (app.networkChart) {
+        app.networkChart.resize();
+    }
+});
+</script>
+{% endblock %}
