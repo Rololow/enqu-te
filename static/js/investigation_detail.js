@@ -1369,9 +1369,11 @@
             const maxEndMs = maxEnd.getTime();
             const totalDurationMs = Math.max(maxEndMs - minStartMs, MS_IN_HOUR);
             const totalHours = totalDurationMs / MS_IN_HOUR;
-            const pxPerHour = totalHours <= 6 ? 220 : totalHours <= 12 ? 180 : 140;
+            const pxPerHour = totalHours <= 6 ? 220 : totalHours <= 12 ? 180 : totalHours <= 24 ? 140 : totalHours <= 24 * 7 ? 60 : totalHours <= 24 * 30 ? 34 : 20;
             const minWidth = Math.max(calendar.clientWidth || 800, 600);
-            const timelineWidth = Math.max(totalHours * pxPerHour, minWidth);
+            const maxWidth = Math.max(12000, minWidth * 4);
+            const rawWidth = totalHours * pxPerHour;
+            const timelineWidth = Math.min(Math.max(rawWidth, minWidth), maxWidth);
 
             inner.style.width = `${timelineWidth}px`;
             axisEl.style.width = `${timelineWidth}px`;
@@ -1396,7 +1398,13 @@
                 if (hoursSpan <= 24 * 30) {
                     return { stepMinutes: 1440, labelOptions: { weekday: 'short', day: 'numeric' }, isMajor: date => date.getDay() === 1 };
                 }
-                return { stepMinutes: 10080, labelOptions: { day: 'numeric', month: 'short' }, isMajor: date => date.getDate() <= 7 };
+                if (hoursSpan <= 24 * 180) {
+                    return { stepMinutes: 10080, labelOptions: { day: 'numeric', month: 'short' }, isMajor: date => date.getDate() <= 7 };
+                }
+                if (hoursSpan <= 24 * 365 * 2) {
+                    return { stepMinutes: 43200, labelOptions: { month: 'short', year: 'numeric' }, isMajor: date => date.getMonth() === 0 };
+                }
+                return { stepMinutes: 525600, labelOptions: { year: 'numeric' }, isMajor: date => date.getFullYear() % 5 === 0 };
             };
 
             const tickDef = selectTickDefinition(totalHours);
@@ -1693,6 +1701,7 @@
                     layout: 'force',
                     zoom: 1.18,
                     center: ['50%', '50%'],
+                    cursor: 'pointer',
                     data: nodes,
                     links: links,
                     categories: [
@@ -1724,6 +1733,16 @@
                 }]
             };
 
+
+                this.networkChart.off('click');
+                this.networkChart.on('click', (params) => {
+                    if (params && params.dataType === 'node' && params.data) {
+                        const nodeId = params.data.id ?? params.data.value ?? params.name;
+                        if (nodeId !== undefined && nodeId !== null) {
+                            this.openEntityDetail(nodeId);
+                        }
+                    }
+                });
             this.networkChart.setOption(option);
         }
 
@@ -1977,14 +1996,203 @@
                     break;
             }
 
+            const linksSection = this.buildNewEntityLinkSection();
+
             title.textContent = modalTitle;
-            fields.innerHTML = fieldHTML;
+            fields.innerHTML = fieldHTML + linksSection;
+            this.resetNewEntityLinkRows();
             modal.dataset.type = type;
             modal.classList.remove('hidden');
         }
 
         closeAddModal() {
             document.getElementById('addModal').classList.add('hidden');
+        }
+
+        buildNewEntityLinkSection() {
+            const entitiesAvailable = Array.isArray(this.entities) && this.entities.length > 0;
+            if (!entitiesAvailable) {
+                return `
+                    <div class="mt-8 space-y-2 bg-slate-900/40 border border-slate-800 rounded-lg p-4">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                            <i class="fas fa-link"></i>
+                            <span>Liens</span>
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            Ajoutez d'autres éléments à l'enquête pour pouvoir créer des liens lors de l'ajout.
+                        </p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="mt-8 space-y-3" id="newEntityLinksSection">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                            <i class="fas fa-link"></i>
+                            <span>Liens à créer</span>
+                        </div>
+                        <button type="button"
+                                class="text-xs px-3 py-1 rounded-full bg-slate-800 border border-slate-600 hover:border-slate-400 text-slate-200 transition-colors"
+                                onclick="app.addNewEntityLinkRow()">
+                            <i class="fas fa-plus mr-1"></i>Ajouter un lien
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        Les liens seront créés automatiquement après enregistrement de l'élément.
+                    </p>
+                    <div id="newEntityLinksContainer" class="space-y-3"></div>
+                </div>
+            `;
+        }
+
+        resetNewEntityLinkRows() {
+            const container = document.getElementById('newEntityLinksContainer');
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+
+        addNewEntityLinkRow() {
+            const container = document.getElementById('newEntityLinksContainer');
+            if (!container) return;
+
+            const options = this.buildEntitySelectOptions();
+            if (!options) {
+                this.showNotification('Aucun autre élément disponible pour créer un lien', 'error');
+                return;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'space-y-3 bg-slate-900/60 border border-slate-700 rounded-lg p-4';
+            row.dataset.newLinkRow = 'true';
+            row.innerHTML = `
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="space-y-2">
+                        <label class="text-xs uppercase tracking-[0.2em] text-slate-400">Associer à</label>
+                        <select class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-blue-500 focus:outline-none" data-link-target>
+                            <option value="">Choisir un élément…</option>
+                            ${options}
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs uppercase tracking-[0.2em] text-slate-400">Type de lien</label>
+                        <input type="text"
+                               class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+                               placeholder="Ex : travaille avec, situé à…"
+                               data-link-title>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs uppercase tracking-[0.2em] text-slate-400">Description (optionnelle)</label>
+                    <textarea rows="2"
+                              class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+                              placeholder="Contexte du lien"
+                              data-link-description></textarea>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button"
+                            class="text-xs px-3 py-1 rounded-full bg-slate-900 border border-red-500/40 text-red-400 hover:text-red-300 transition-colors"
+                            onclick="app.removeNewEntityLinkRow(this)">
+                        <i class="fas fa-times mr-1"></i>Supprimer
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(row);
+        }
+
+        removeNewEntityLinkRow(buttonEl) {
+            if (!buttonEl) return;
+            const row = buttonEl.closest('[data-new-link-row]');
+            if (row && row.parentNode) {
+                row.parentNode.removeChild(row);
+            }
+        }
+
+        buildEntitySelectOptions() {
+            if (!Array.isArray(this.entities) || this.entities.length === 0) {
+                return '';
+            }
+            const typeLabels = {
+                person: 'Personne',
+                location: 'Lieu',
+                evidence: 'Preuve',
+                event: 'Événement'
+            };
+            return this.entities
+                .map(entity => {
+                    const label = this.escapeHtml(entity.title || 'Sans titre');
+                    const typeLabel = typeLabels[entity.type] || entity.type;
+                    return `<option value="${entity.id}">${label} (${typeLabel})</option>`;
+                })
+                .join('');
+        }
+
+        collectNewEntityLinkRequests() {
+            const container = document.getElementById('newEntityLinksContainer');
+            if (!container) return [];
+
+            const rows = Array.from(container.querySelectorAll('[data-new-link-row]'));
+            const requests = [];
+
+            rows.forEach(row => {
+                const targetSelect = row.querySelector('[data-link-target]');
+                const titleInput = row.querySelector('[data-link-title]');
+                const descriptionInput = row.querySelector('[data-link-description]');
+                const targetId = targetSelect ? targetSelect.value : '';
+                if (!targetId) return;
+
+                requests.push({
+                    toEntityId: targetId,
+                    title: (titleInput?.value || '').trim(),
+                    description: (descriptionInput?.value || '').trim()
+                });
+            });
+
+            return requests;
+        }
+
+        async createLinksForNewEntity(newEntityId, pendingLinks) {
+            if (!pendingLinks.length) {
+                return [];
+            }
+
+            const errors = [];
+
+            for (const link of pendingLinks) {
+                const payload = {
+                    from_entity_id: newEntityId,
+                    to_entity_id: link.toEntityId,
+                    title: link.title || 'Associé à',
+                    description: link.description || ''
+                };
+
+                if (!payload.to_entity_id || payload.to_entity_id === newEntityId) {
+                    continue;
+                }
+
+                try {
+                    const response = await fetch(`/api/investigation/${this.investigationId}/links/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        errors.push(data.error || 'Impossible de créer l\'un des liens');
+                    }
+                } catch (error) {
+                    console.error('Error creating link for new entity:', error);
+                    errors.push('Une erreur est survenue lors de la création d\'un lien');
+                }
+            }
+
+            return errors;
         }
 
         openAddTypeModal() {
@@ -2015,6 +2223,8 @@
                 evidence_type: formData.get('evidence_type') || ''
             };
 
+            const pendingLinks = this.collectNewEntityLinkRequests();
+
             try {
                 const response = await fetch(`/api/investigation/${this.investigationId}/entities/`, {
                     method: 'POST',
@@ -2025,12 +2235,28 @@
                     body: JSON.stringify(data)
                 });
 
-                if (response.ok) {
-                    this.closeAddModal();
-                    await this.loadData();
-                    this.showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} ajouté(e) avec succès !`, 'success');
-                } else {
-                    throw new Error('Failed to add entity');
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to add entity');
+                }
+
+                const newEntityId = payload.id;
+                let linkErrors = [];
+
+                if (pendingLinks.length && newEntityId) {
+                    linkErrors = await this.createLinksForNewEntity(newEntityId, pendingLinks);
+                }
+
+                this.closeAddModal();
+                await this.loadData();
+
+                this.showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} ajouté(e) avec succès !`, 'success');
+
+                if (pendingLinks.length && linkErrors.length === 0) {
+                    this.showNotification('Liens créés avec succès', 'success');
+                } else if (linkErrors.length) {
+                    this.showNotification(linkErrors[0], 'error');
                 }
             } catch (error) {
                 console.error('Error adding entity:', error);
