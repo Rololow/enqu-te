@@ -688,105 +688,260 @@ class InvestigationApp {
     }
     
     renderTimeline() {
-        const container = document.getElementById('timelineContainer');
-        const filteredEntities = this.getFilteredEntities();
-        
-        // Filter and sort events by date
-        const events = filteredEntities
-            .filter(e => e.type === 'event' && e.event_date)
-            .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-        
-        if (events.length === 0) {
-            container.innerHTML = `
-                <div class="flex items-center justify-center h-64">
-                    <div class="text-center">
-                        <i class="fas fa-calendar text-4xl text-slate-600 mb-4"></i>
-                        <p class="text-slate-400">Aucun événement à afficher</p>
-                    </div>
-                </div>
-            `;
+        const calendar = document.getElementById('timelineContainer');
+        const axisEl = document.getElementById('timelineAxis');
+        const eventsLayer = document.getElementById('timelineEvents');
+        const inner = document.getElementById('timelineCalendarInner');
+        const emptyState = document.getElementById('timelineEmptyState');
+
+        if (!calendar || !axisEl || !eventsLayer || !inner || !emptyState) {
             return;
         }
-        
-        container.innerHTML = events.map((event, index) => {
-            const startDate = event.event_date ? new Date(event.event_date) : null;
-            const endDate = event.event_end_date ? new Date(event.event_end_date) : null;
-            const hasDuration = Boolean(startDate && endDate);
-            const linkedLocations = this.getLinkedLocations(event.id);
 
-            const marker = hasDuration
-                ? '<div class="timeline-marker-duration absolute -top-6 left-1/2 -translate-x-1/2"></div>'
-                : '<div class="timeline-marker-point absolute -top-10 left-1/2 -translate-x-1/2"></div>';
+        const MS_IN_MINUTE = 60000;
+        const MS_IN_HOUR = 60 * MS_IN_MINUTE;
+        const POINT_DURATION_MS = 45 * MS_IN_MINUTE;
 
-            const formatOptions = {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            };
+        const parseDate = (value) => {
+            if (!value) return null;
+            const parsed = new Date(value);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        };
 
-            const startLabel = startDate ? startDate.toLocaleString('fr-FR', formatOptions) : 'Date non précisée';
-            const endLabel = endDate ? endDate.toLocaleString('fr-FR', formatOptions) : '';
+        const filteredEntities = this.getFilteredEntities();
+        const normalizedEvents = filteredEntities
+            .filter(entity => entity.type === 'event' && entity.event_date)
+            .map(entity => {
+                const start = parseDate(entity.event_date);
+                if (!start) return null;
 
-            const dateMarkup = hasDuration
-                ? `<p class="text-emerald-300 text-sm mb-2">Du ${startLabel}<br><span class="text-emerald-200">au ${endLabel}</span></p>`
-                : `<p class="text-purple-300 text-sm mb-2">${event.is_timeslot ? 'Créneau le' : 'Le'} ${startLabel}</p>`;
+                let end = parseDate(entity.event_end_date);
+                const hasDuration = Boolean(end && end > start);
+                if (!hasDuration) {
+                    end = null;
+                }
 
-            const metaTags = [
-                hasDuration ? '<span class="px-2 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-200">Durée</span>' : '',
-                event.is_timeslot ? '<span class="px-2 py-1 text-xs rounded-full bg-sky-500/20 text-sky-200">Créneau approximatif</span>' : ''
-            ].filter(Boolean);
+                const visualEnd = hasDuration ? end : new Date(start.getTime() + POINT_DURATION_MS);
 
-            const metaMarkup = metaTags.length ? `<div class="flex flex-wrap gap-2 mb-3">${metaTags.join('')}</div>` : '';
+                return {
+                    raw: entity,
+                    start,
+                    end,
+                    visualEnd,
+                    hasDuration
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.start - b.start);
 
-            const locationMarkup = linkedLocations.length ? `
-                <div class="flex flex-wrap gap-2 mb-2">
-                    ${linkedLocations.map(loc => `
-                        <span class="inline-flex items-center px-2 py-1 bg-amber-600/20 text-amber-300 text-xs rounded-full">
-                            <i class="fas fa-map-marker-alt mr-1"></i>${loc.title}
-                        </span>
-                    `).join('')}
-                </div>
-            ` : '';
+        if (normalizedEvents.length === 0) {
+            axisEl.innerHTML = '';
+            eventsLayer.innerHTML = '';
+            inner.style.width = '100%';
+            axisEl.style.width = '100%';
+            eventsLayer.style.width = '100%';
+            calendar.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            return;
+        }
 
-            const cardAccent = hasDuration ? 'border border-emerald-500/40 shadow-lg shadow-emerald-500/10' : 'border border-purple-500/30 shadow-lg shadow-purple-500/10';
+        emptyState.classList.add('hidden');
+        calendar.classList.remove('hidden');
 
-            return `
-                <div class="timeline-item-horizontal bg-slate-800 rounded-xl p-6 relative ${cardAccent}" style="animation-delay: ${index * 0.1}s">
-                    ${marker}
-                    <div class="mb-4">
-                        <h3 class="text-lg font-bold text-white mb-2">${event.title}</h3>
-                        ${dateMarkup}
-                        ${metaMarkup}
-                        ${locationMarkup}
-                    </div>
-                    
-                    ${event.description ? `<p class="text-slate-300 text-sm mb-4">${event.description}</p>` : ''}
-                    
-                    <div class="flex items-center justify-between">
-                        <div class="flex space-x-2">
-                            <button onclick="app.editEntity('${event.id}')" 
-                                    class="p-2 text-blue-400 hover:text-blue-300 transition-colors">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                        <button onclick="app.openLinkModal('${event.id}')" 
-                                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
-                            <i class="fas fa-link mr-1"></i>Lien
-                        </button>
-                    </div>
+        let minStart = normalizedEvents[0].start;
+        let maxEnd = normalizedEvents[0].visualEnd;
+
+        normalizedEvents.forEach(evt => {
+            if (evt.start < minStart) minStart = evt.start;
+            if (evt.visualEnd > maxEnd) maxEnd = evt.visualEnd;
+        });
+
+        const minStartMs = minStart.getTime();
+        const maxEndMs = maxEnd.getTime();
+        const totalDurationMs = Math.max(maxEndMs - minStartMs, MS_IN_HOUR);
+        const totalHours = totalDurationMs / MS_IN_HOUR;
+        const pxPerHour = totalHours <= 6 ? 220 : totalHours <= 12 ? 180 : 140;
+        const minWidth = Math.max(calendar.clientWidth || 800, 600);
+        const timelineWidth = Math.max(totalHours * pxPerHour, minWidth);
+
+        inner.style.width = `${timelineWidth}px`;
+        axisEl.style.width = `${timelineWidth}px`;
+        eventsLayer.style.width = `${timelineWidth}px`;
+
+        axisEl.innerHTML = '';
+        eventsLayer.innerHTML = '';
+
+        const selectTickDefinition = (hoursSpan) => {
+            if (hoursSpan <= 6) {
+                return { stepMinutes: 30, labelOptions: { hour: '2-digit', minute: '2-digit' }, isMajor: date => date.getHours() % 2 === 0 && date.getMinutes() === 0 };
+            }
+            if (hoursSpan <= 12) {
+                return { stepMinutes: 60, labelOptions: { hour: '2-digit', minute: '2-digit' }, isMajor: date => date.getHours() % 3 === 0 };
+            }
+            if (hoursSpan <= 48) {
+                return { stepMinutes: 180, labelOptions: { weekday: 'short', hour: '2-digit' }, isMajor: date => date.getHours() === 0 };
+            }
+            if (hoursSpan <= 24 * 7) {
+                return { stepMinutes: 720, labelOptions: { weekday: 'short', day: 'numeric', hour: '2-digit' }, isMajor: date => date.getHours() === 0 };
+            }
+            if (hoursSpan <= 24 * 30) {
+                return { stepMinutes: 1440, labelOptions: { weekday: 'short', day: 'numeric' }, isMajor: date => date.getDay() === 1 };
+            }
+            return { stepMinutes: 10080, labelOptions: { day: 'numeric', month: 'short' }, isMajor: date => date.getDate() <= 7 };
+        };
+
+        const tickDef = selectTickDefinition(totalHours);
+        const stepMs = tickDef.stepMinutes * MS_IN_MINUTE;
+        const tickFormatter = new Intl.DateTimeFormat('fr-FR', tickDef.labelOptions);
+
+        const tickSet = new Set([minStartMs, maxEndMs]);
+        let currentMs = Math.floor(minStartMs / stepMs) * stepMs;
+        if (currentMs < minStartMs) currentMs += stepMs;
+
+        while (currentMs <= maxEndMs) {
+            tickSet.add(currentMs);
+            currentMs += stepMs;
+        }
+
+        const tickTimes = Array.from(tickSet).sort((a, b) => a - b);
+        const axisFragment = document.createDocumentFragment();
+        const gridFragment = document.createDocumentFragment();
+
+        tickTimes.forEach(tickMs => {
+            const ratio = (tickMs - minStartMs) / totalDurationMs;
+            const position = Math.min(Math.max(ratio * timelineWidth, 0), timelineWidth);
+            const date = new Date(tickMs);
+
+            const tick = document.createElement('div');
+            tick.className = 'timeline-axis-tick';
+            if (tickDef.isMajor(date)) {
+                tick.classList.add('major');
+            }
+            tick.style.left = `${position}px`;
+            axisFragment.appendChild(tick);
+
+            const label = document.createElement('div');
+            label.className = 'timeline-axis-label';
+            label.style.left = `${position}px`;
+            label.textContent = tickFormatter.format(date);
+            axisFragment.appendChild(label);
+
+            const grid = document.createElement('div');
+            grid.className = 'timeline-gridline';
+            grid.style.left = `${position}px`;
+            gridFragment.appendChild(grid);
+        });
+
+        axisEl.appendChild(axisFragment);
+        eventsLayer.appendChild(gridFragment);
+
+        const includeDateInLabel = totalDurationMs > 12 * MS_IN_HOUR;
+        const dateFormatter = includeDateInLabel ? new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : null;
+        const timeFormatter = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+        const formatMoment = (date) => {
+            if (!date) return '';
+            const timePart = timeFormatter.format(date);
+            if (!includeDateInLabel || !dateFormatter) {
+                return timePart;
+            }
+            return `${dateFormatter.format(date)} · ${timePart}`;
+        };
+
+        const lanes = [];
+        const eventsFragment = document.createDocumentFragment();
+        const laneHeight = 92;
+
+        normalizedEvents.forEach(evt => {
+            const startMs = evt.start.getTime();
+            const visualEndMs = evt.visualEnd.getTime();
+            const endMs = evt.end ? evt.end.getTime() : visualEndMs;
+            const ratioStart = (startMs - minStartMs) / totalDurationMs;
+            const rawWidthRatio = (visualEndMs - startMs) / totalDurationMs;
+            const linkedLocations = this.getLinkedLocations(evt.raw.id);
+
+            let laneIndex = lanes.findIndex(laneEnd => startMs >= laneEnd);
+            if (laneIndex === -1) {
+                lanes.push(visualEndMs);
+                laneIndex = lanes.length - 1;
+            } else {
+                lanes[laneIndex] = visualEndMs;
+            }
+
+            let width = evt.hasDuration ? rawWidthRatio * timelineWidth : 12;
+            if (evt.hasDuration) {
+                width = Math.max(width, 24);
+            }
+
+            const left = Math.max(ratioStart * timelineWidth, 0);
+            width = Math.min(width, timelineWidth - left);
+
+            const eventBlock = document.createElement('div');
+            eventBlock.className = 'timeline-event';
+            if (evt.raw.is_timeslot) {
+                eventBlock.classList.add('timeslot');
+            }
+            if (!evt.hasDuration) {
+                eventBlock.classList.add('point');
+            }
+
+            const timeLabel = evt.hasDuration
+                ? `${formatMoment(evt.start)} → ${formatMoment(new Date(endMs))}`
+                : formatMoment(evt.start);
+
+            const locationNames = linkedLocations.map(loc => loc.title).filter(Boolean);
+            const metaSegments = [];
+
+            if (evt.raw.is_timeslot) {
+                metaSegments.push('<span>Créneau approximatif</span>');
+            }
+            if (locationNames.length) {
+                metaSegments.push(`<span><i class="fas fa-map-marker-alt mr-1"></i>${locationNames.join(', ')}</span>`);
+            }
+
+            const tooltipParts = [evt.raw.title || 'Événement'];
+            if (locationNames.length) {
+                tooltipParts.push(locationNames.join(', '));
+            }
+            tooltipParts.push(timeLabel);
+
+            eventBlock.dataset.title = tooltipParts.filter(Boolean).join(' • ');
+            eventBlock.dataset.eventId = evt.raw.id;
+            eventBlock.style.left = `${left}px`;
+            eventBlock.style.top = `${laneIndex * laneHeight}px`;
+            eventBlock.style.width = `${Math.max(width, 4)}px`;
+            eventBlock.setAttribute('tabindex', '0');
+            eventBlock.title = timeLabel;
+
+            const descriptionMarkup = evt.raw.description
+                ? `<p class="text-xs text-slate-100/80 leading-snug overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${evt.raw.description}</p>`
+                : '';
+
+            eventBlock.innerHTML = `
+                <div class="timeline-event-content">
+                    <div class="timeline-event-title">${evt.raw.title || 'Sans titre'}</div>
+                    <div class="timeline-event-time">${timeLabel}</div>
+                    ${metaSegments.length ? `<div class="timeline-event-meta">${metaSegments.join('<span class=\"opacity-60\">•</span>')}</div>` : ''}
+                    ${descriptionMarkup}
                 </div>
             `;
-        }).join('');
-        
-        // Animate timeline items
-        setTimeout(() => {
-            document.querySelectorAll('.timeline-item-horizontal').forEach(item => {
-                item.classList.add('animate');
+
+            eventBlock.addEventListener('click', () => {
+                this.editEntity(evt.raw.id);
             });
-        }, 100);
+
+            eventBlock.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.editEntity(evt.raw.id);
+                }
+            });
+
+            eventsFragment.appendChild(eventBlock);
+        });
+
+        eventsLayer.appendChild(eventsFragment);
+        eventsLayer.style.height = `${Math.max(lanes.length, 1) * laneHeight}px`;
     }
     
     renderNetwork() {
