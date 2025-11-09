@@ -482,16 +482,39 @@ class InvestigationApp {
         this.userRole = '{{ user_role }}';
         this.investigationOwnerId = '{{ investigation.created_by_id }}';
         this.isOwner = this.userRole === 'owner';
+        this.activeTypeFilters = new Set();
+        this.attributeFilters = {
+            has_description: false,
+            has_links: false
+        };
+        this.sortOption = 'updated_desc';
+        this.searchTermRaw = '';
+        this.searchTerm = '';
+        this.linkCountMap = new Map();
         
         this.init();
     }
     
     init() {
+        this.captureInitialFilterState();
         this.loadData();
         this.setupEventListeners();
         this.startPresence();
         this.startHeartbeat();
         this.startAutoSync();
+    }
+
+    captureInitialFilterState() {
+        const searchInput = document.getElementById('searchInput');
+        this.searchTermRaw = searchInput ? searchInput.value : '';
+        this.searchTerm = (this.searchTermRaw || '').toLowerCase();
+
+        const sortSelect = document.getElementById('sortSelect');
+        this.sortOption = sortSelect ? sortSelect.value : 'updated_desc';
+
+        this.resetTypeFilters(true);
+        this.resetAttributeFilters(true);
+        this.updateActiveFilterChips();
     }
     
     setupEventListeners() {
@@ -560,6 +583,7 @@ class InvestigationApp {
             
             this.entities = (await entitiesResponse.json()).entities;
             this.links = (await linksResponse.json()).links;
+            this.linkCountMap = this.buildLinkCountMap();
 
             // Populate checkbox filters for persons, locations and events
             try {
@@ -620,6 +644,7 @@ class InvestigationApp {
 
             this.refreshView();
             this.refreshEntityDetail();
+            this.updateActiveFilterChips();
             // also refresh presence immediately after loading data
             this.fetchPresence();
         } catch (error) {
@@ -1304,12 +1329,252 @@ class InvestigationApp {
                 // Replace and refresh view
                 this.entities = newEntities;
                 this.links = newLinks;
+                this.linkCountMap = this.buildLinkCountMap();
                 this.refreshView();
                 this.refreshEntityDetail();
+                this.updateActiveFilterChips();
             }
         } catch (e) {
             console.error('Error fetching latest changes for auto-sync', e);
         }
+    }
+    
+    toggleTypeFilter(type, forceState = null) {
+        if (!type) return;
+        const isActive = this.activeTypeFilters.has(type);
+        const nextState = forceState === null ? !isActive : Boolean(forceState);
+
+        if (nextState) {
+            this.activeTypeFilters.add(type);
+        } else {
+            this.activeTypeFilters.delete(type);
+        }
+
+        this.updateTypeButtonAppearance(type, nextState);
+        this.updateActiveFilterChips();
+        this.refreshView();
+    }
+
+    updateTypeButtonAppearance(type, isActive) {
+        const button = document.querySelector(`#filterTypeButtons [data-filter-type="${type}"]`);
+        if (!button) return;
+
+        button.classList.toggle('bg-blue-600', isActive);
+        button.classList.toggle('text-white', isActive);
+        button.classList.toggle('border-blue-500/60', isActive);
+        button.classList.toggle('bg-slate-800/80', !isActive);
+        button.classList.toggle('text-slate-300', !isActive);
+        button.classList.toggle('border-slate-700', !isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    }
+
+    resetTypeFilters(silent = false) {
+        this.activeTypeFilters.clear();
+        const types = ['person', 'location', 'evidence', 'event'];
+        types.forEach(type => this.updateTypeButtonAppearance(type, false));
+
+        if (!silent) {
+            this.updateActiveFilterChips();
+            this.refreshView();
+        }
+    }
+
+    toggleAttributeFilter(key, isActive) {
+        if (!(key in this.attributeFilters)) return;
+        const flag = Boolean(isActive);
+        this.attributeFilters[key] = flag;
+
+        const checkboxMap = {
+            has_description: 'filterHasDescription',
+            has_links: 'filterHasLinks'
+        };
+        const checkboxId = checkboxMap[key];
+        if (checkboxId) {
+            const checkbox = document.getElementById(checkboxId);
+            if (checkbox && checkbox.checked !== flag) {
+                checkbox.checked = flag;
+            }
+        }
+
+        this.updateActiveFilterChips();
+        this.refreshView();
+    }
+
+    resetAttributeFilters(silent = false) {
+        Object.keys(this.attributeFilters).forEach(key => {
+            this.attributeFilters[key] = false;
+        });
+
+        ['filterHasDescription', 'filterHasLinks'].forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+        });
+
+        if (!silent) {
+            this.updateActiveFilterChips();
+            this.refreshView();
+        }
+    }
+
+    onSortChange(event) {
+        const value = event?.target?.value || 'updated_desc';
+        this.sortOption = value;
+        this.refreshView();
+    }
+
+    onSearchInput(event) {
+        const raw = event?.target?.value || '';
+        this.searchTermRaw = raw;
+        this.searchTerm = raw.toLowerCase();
+        this.updateActiveFilterChips();
+        this.refreshView();
+    }
+
+    updateActiveFilterChips() {
+        const container = document.getElementById('activeFilterChips');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        const typeLabels = {
+            person: 'Personnes',
+            location: 'Lieux',
+            evidence: 'Preuves',
+            event: 'Événements'
+        };
+
+        const attributeLabels = {
+            has_description: 'Avec description',
+            has_links: 'Avec liens'
+        };
+
+        const chips = [];
+
+        this.activeTypeFilters.forEach(type => {
+            chips.push({
+                key: `type:${type}`,
+                label: typeLabels[type] || type,
+                onRemove: () => this.toggleTypeFilter(type, false)
+            });
+        });
+
+        Object.entries(this.attributeFilters).forEach(([key, value]) => {
+            if (value) {
+                chips.push({
+                    key: `attr:${key}`,
+                    label: attributeLabels[key] || key,
+                    onRemove: () => this.toggleAttributeFilter(key, false)
+                });
+            }
+        });
+
+        if (this.searchTermRaw && this.searchTermRaw.trim()) {
+            chips.push({
+                key: 'search',
+                label: `Recherche : "${this.searchTermRaw.trim()}"`,
+                onRemove: () => {
+                    this.searchTermRaw = '';
+                    this.searchTerm = '';
+                    const input = document.getElementById('searchInput');
+                    if (input) {
+                        input.value = '';
+                    }
+                    this.updateActiveFilterChips();
+                    this.refreshView();
+                }
+            });
+        }
+
+        if (!chips.length) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+
+        chips.forEach(chip => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-xs border border-slate-600 hover:border-slate-400 transition-colors';
+            button.innerHTML = `<span>${chip.label}</span><i class="fas fa-times text-[10px]"></i>`;
+            button.addEventListener('click', () => chip.onRemove());
+            container.appendChild(button);
+        });
+    }
+
+    buildLinkCountMap() {
+        const map = new Map();
+        this.links.forEach(link => {
+            const fromId = String(link.from_entity.id);
+            const toId = String(link.to_entity.id);
+            map.set(fromId, (map.get(fromId) || 0) + 1);
+            map.set(toId, (map.get(toId) || 0) + 1);
+        });
+        return map;
+    }
+
+    entityHasLinks(entityId) {
+        const key = String(entityId);
+        return (this.linkCountMap.get(key) || 0) > 0;
+    }
+
+    sortEntities(entities) {
+        const sorted = [...entities];
+        const typeOrder = {
+            person: 0,
+            location: 1,
+            event: 2,
+            evidence: 3
+        };
+
+        const compareTitle = (a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base' });
+        const getTimestamp = (value) => {
+            if (!value) return 0;
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+        };
+
+        const getUpdatedTimestamp = (entity) => getTimestamp(entity.updated_at) || getTimestamp(entity.created_at);
+        const getCreatedTimestamp = (entity) => getTimestamp(entity.created_at);
+        const getLinkCount = (entity) => this.linkCountMap.get(String(entity.id)) || 0;
+
+        switch (this.sortOption) {
+            case 'updated_asc':
+                sorted.sort((a, b) => getUpdatedTimestamp(a) - getUpdatedTimestamp(b));
+                break;
+            case 'created_desc':
+                sorted.sort((a, b) => getCreatedTimestamp(b) - getCreatedTimestamp(a));
+                break;
+            case 'created_asc':
+                sorted.sort((a, b) => getCreatedTimestamp(a) - getCreatedTimestamp(b));
+                break;
+            case 'title_asc':
+                sorted.sort((a, b) => compareTitle(a, b));
+                break;
+            case 'title_desc':
+                sorted.sort((a, b) => compareTitle(b, a));
+                break;
+            case 'type_asc':
+                sorted.sort((a, b) => {
+                    const diff = (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99);
+                    return diff !== 0 ? diff : compareTitle(a, b);
+                });
+                break;
+            case 'links_desc':
+                sorted.sort((a, b) => {
+                    const diff = getLinkCount(b) - getLinkCount(a);
+                    return diff !== 0 ? diff : compareTitle(a, b);
+                });
+                break;
+            case 'updated_desc':
+            default:
+                sorted.sort((a, b) => getUpdatedTimestamp(b) - getUpdatedTimestamp(a));
+                break;
+        }
+
+        return sorted;
     }
     
     switchView(view) {
@@ -1354,21 +1619,22 @@ class InvestigationApp {
     }
     
     getFilteredEntities() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const searchTerm = (this.searchTerm || '').trim();
+    const normalizedSearch = searchTerm.toLowerCase();
 
-    const personChecks = Array.from(document.querySelectorAll('#personsList input[type=checkbox]:checked')).map(i => i.value);
-    const placeChecks = Array.from(document.querySelectorAll('#placesList input[type=checkbox]:checked')).map(i => i.value);
-    const eventChecks = Array.from(document.querySelectorAll('#eventsList input[type=checkbox]:checked')).map(i => i.value);
+        const personChecks = Array.from(document.querySelectorAll('#personsList input[type=checkbox]:checked')).map(i => i.value);
+        const placeChecks = Array.from(document.querySelectorAll('#placesList input[type=checkbox]:checked')).map(i => i.value);
+        const eventChecks = Array.from(document.querySelectorAll('#eventsList input[type=checkbox]:checked')).map(i => i.value);
 
         const forceTimelineEvent = (this.currentView === 'timeline');
 
-    const selectedPersons = new Set(personChecks.map(String));
-    const selectedPlaces = new Set(placeChecks.map(String));
-    const selectedEvents = new Set(eventChecks.map(String));
+        const selectedPersons = new Set(personChecks.map(String));
+        const selectedPlaces = new Set(placeChecks.map(String));
+        const selectedEvents = new Set(eventChecks.map(String));
 
         const focusIds = new Set([...selectedPersons, ...selectedPlaces]);
 
-        let filtered = this.entities;
+        let filtered = [...this.entities];
 
         if (focusIds.size > 0) {
             const linkedIds = new Set(focusIds);
@@ -1384,7 +1650,11 @@ class InvestigationApp {
             filtered = filtered.filter(entity => linkedIds.has(String(entity.id)));
         }
 
-        return filtered.filter(entity => {
+        if (this.activeTypeFilters.size > 0) {
+            filtered = filtered.filter(entity => this.activeTypeFilters.has(entity.type));
+        }
+
+        filtered = filtered.filter(entity => {
             const entityId = String(entity.id);
             if (forceTimelineEvent && entity.type !== 'event') return false;
 
@@ -1403,20 +1673,39 @@ class InvestigationApp {
                 }
             }
 
-            const matchesEvent = selectedEvents.size === 0 || entity.type !== 'event' || selectedEvents.has(entityId);
-            const searchPool = [
-                entity.title || '',
-                entity.description || '',
-                entity.location || '',
-                entity.event_end_date || '',
-                entity.address || '',
-                entity.role || '',
-                ...linkedLocations.map(loc => `${loc.title} ${loc.address || ''}`)
-            ].join(' ').toLowerCase();
-            const matchesSearch = !searchTerm || searchPool.includes(searchTerm);
+            if (selectedEvents.size > 0 && entity.type === 'event' && !selectedEvents.has(entityId)) {
+                return false;
+            }
 
-            return matchesEvent && matchesSearch;
+            if (this.attributeFilters.has_description) {
+                if (!(entity.description && entity.description.trim().length > 0)) {
+                    return false;
+                }
+            }
+
+            if (this.attributeFilters.has_links && !this.entityHasLinks(entityId)) {
+                return false;
+            }
+
+            if (searchTerm) {
+                const searchPool = [
+                    entity.title || '',
+                    entity.description || '',
+                    entity.location || '',
+                    entity.event_end_date || '',
+                    entity.address || '',
+                    entity.role || '',
+                    ...linkedLocations.map(loc => `${loc.title} ${loc.address || ''}`)
+                ].join(' ').toLowerCase();
+                if (!searchPool.includes(normalizedSearch)) {
+                    return false;
+                }
+            }
+
+            return true;
         });
+
+        return this.sortEntities(filtered);
     }
     
     getLinkedLocations(entityId) {
@@ -2458,6 +2747,7 @@ class InvestigationApp {
     
     applyFilters() {
         this.refreshView();
+        this.updateActiveFilterChips();
     }
     
     showNotification(message, type = 'info') {
@@ -2532,6 +2822,10 @@ function clearFilters() {
     if (search) {
         search.value = '';
     }
+    app.resetTypeFilters(true);
+    app.resetAttributeFilters(true);
+    app.searchTermRaw = '';
+    app.searchTerm = '';
     app.applyFilters();
 }
 
