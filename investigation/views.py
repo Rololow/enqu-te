@@ -22,7 +22,8 @@ class AuthView(View):
         if action == 'login':
             return render(request, 'investigation/auth/login.html')
         elif action == 'register':
-            return render(request, 'investigation/auth/register.html')
+            form = UserRegistrationForm()
+            return render(request, 'investigation/auth/register.html', {'form': form})
         elif action == 'logout':
             logout(request)
             return redirect('home')

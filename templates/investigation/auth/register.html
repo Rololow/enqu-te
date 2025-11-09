@@ -14,16 +14,23 @@
                 <p class="text-slate-400 mt-2">Créez votre compte</p>
             </div>
             
-            <form method="post" enctype="multipart/form-data" class="space-y-6">
+            <form method="post" enctype="multipart/form-data" class="space-y-6" novalidate>
                 {% csrf_token %}
-                
+                <p class="text-xs text-slate-400">
+                    Les champs marqués d'un <span class="text-red-400">*</span> sont obligatoires.
+                </p>
+                {% if form.is_bound and form.non_field_errors %}
+                <div class="bg-red-500/20 border border-red-500/40 text-red-200 text-sm rounded-lg px-4 py-3">
+                    {{ form.non_field_errors|join:", " }}
+                </div>
+                {% endif %}
                 {% for field in form %}
                 <div>
                     <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-300 mb-2">
-                        {{ field.label }}
+                        {{ field.label }}{% if field.field.required %} <span class="text-red-400">*</span>{% endif %}
                     </label>
                     {{ field }}
-                    {% if field.errors %}
+                    {% if form.is_bound and field.errors %}
                     <p class="text-red-400 text-sm mt-1">{{ field.errors.0 }}</p>
                     {% endif %}
                 </div>
