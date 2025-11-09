@@ -190,37 +190,94 @@
         </div>
         {% endif %}
 
-        <!-- Filter dropdown (grouped checkboxes for Personnes, Lieux, Événements) -->
+        <!-- Filter & sort panel -->
         <div class="relative mb-6">
-            <button id="filterButton" onclick="toggleFilterDropdown()" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200">
-                <i class="fas fa-filter mr-2"></i>Filtres
+            <button id="filterButton" onclick="toggleFilterDropdown()" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 flex items-center gap-2">
+                <i class="fas fa-filter"></i>
+                <span>Filtres &amp; Tri</span>
             </button>
 
-            <div id="filterDropdown" class="hidden absolute mt-2 left-0 w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50 p-4">
-                <div class="max-h-64 overflow-auto">
-                    <div class="mb-3">
-                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Personnes</h4>
-                        <div id="personsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+            <div id="filterDropdown" class="hidden absolute mt-2 left-0 w-[28rem] max-w-[90vw] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 p-5">
+                <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Types d'éléments</h4>
+                            <button type="button" id="filterTypeAllBtn" class="text-xs text-blue-400 hover:text-blue-300" onclick="app.resetTypeFilters()">Tout</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2" id="filterTypeButtons">
+                            <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="person" onclick="app.toggleTypeFilter('person')">
+                                <i class="fas fa-user"></i><span>Personnes</span>
+                            </button>
+                            <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="location" onclick="app.toggleTypeFilter('location')">
+                                <i class="fas fa-map-marker-alt"></i><span>Lieux</span>
+                            </button>
+                            <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="evidence" onclick="app.toggleTypeFilter('evidence')">
+                                <i class="fas fa-file-alt"></i><span>Preuves</span>
+                            </button>
+                            <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="event" onclick="app.toggleTypeFilter('event')">
+                                <i class="fas fa-calendar"></i><span>Événements</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Lieux</h4>
-                        <div id="placesList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Attributs rapides</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 text-sm text-slate-200 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700">
+                                <input type="checkbox" id="filterHasDescription" class="h-4 w-4 rounded border-slate-600 text-blue-500 focus:ring-blue-400" onchange="app.toggleAttributeFilter('has_description', this.checked)">
+                                <span>Avec description</span>
+                            </label>
+                            <label class="flex items-center gap-3 text-sm text-slate-200 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700">
+                                <input type="checkbox" id="filterHasLinks" class="h-4 w-4 rounded border-slate-600 text-blue-500 focus:ring-blue-400" onchange="app.toggleAttributeFilter('has_links', this.checked)">
+                                <span>Avec liens</span>
+                            </label>
+                        </div>
                     </div>
-                    <div id="eventsSection" class="mb-3">
-                        <h4 class="text-sm font-semibold text-slate-300 mb-2">Événements</h4>
-                        <div id="eventsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Focus sur des entités</h4>
+                        <p class="text-xs text-slate-500 mb-3">Sélectionnez une ou plusieurs entités pour afficher leurs fiches et tout ce qui leur est relié.</p>
+                        <div class="space-y-3">
+                            <div>
+                                <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Personnes</h5>
+                                <div id="personsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                            </div>
+                            <div>
+                                <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Lieux</h5>
+                                <div id="placesList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                            </div>
+                            <div>
+                                <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Événements</h5>
+                                <div id="eventsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Trier par</h4>
+                        <select id="sortSelect" class="w-full px-4 py-2 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-blue-500 focus:outline-none" onchange="app.onSortChange(event)">
+                            <option value="updated_desc">Dernières mises à jour</option>
+                            <option value="updated_asc">Premières mises à jour</option>
+                            <option value="created_desc">Création (récent → ancien)</option>
+                            <option value="created_asc">Création (ancien → récent)</option>
+                            <option value="title_asc">Titre A → Z</option>
+                            <option value="title_desc">Titre Z → A</option>
+                            <option value="type_asc">Type</option>
+                            <option value="links_desc">Nombre de liens</option>
+                        </select>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between mt-3">
-                    <button onclick="clearFilters();" class="px-3 py-2 bg-slate-700 rounded text-sm">Effacer</button>
-                    <button onclick="applyFilters(); toggleFilterDropdown();" class="px-3 py-2 bg-blue-600 rounded text-sm text-white">Appliquer</button>
+                <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="clearFilters();" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-200">Réinitialiser</button>
+                    <button type="button" onclick="applyFilters(); toggleFilterDropdown();" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white">Appliquer</button>
                 </div>
             </div>
 
-            <div class="mt-3">
-                <input type="text" id="searchInput" placeholder="Rechercher..." onkeyup="applyFilters()"
-                       class="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none">
+            <div class="mt-3 space-y-3">
+                <input type="text" id="searchInput" placeholder="Rechercher..." oninput="app.onSearchInput(event)"
+                       class="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none text-slate-200 placeholder-slate-500">
+                <div id="activeFilterChips" class="hidden flex flex-wrap gap-2"></div>
             </div>
         </div>
     </div>
@@ -339,6 +396,40 @@
     </div>
 </div>
 
+<!-- Entity Detail Drawer -->
+<div id="entityDetailModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] hidden">
+    <div class="flex justify-end min-h-screen">
+        <div class="relative w-full max-w-xl bg-slate-900/95 border-l border-slate-700 shadow-2xl overflow-y-auto">
+            <div class="sticky top-0 z-10 bg-slate-900/95 border-b border-slate-700 px-6 py-4 flex items-start justify-between">
+                <div>
+                    <p id="entityDetailType" class="text-xs uppercase tracking-[0.2em] text-slate-400"></p>
+                    <h2 id="entityDetailTitle" class="text-2xl font-semibold text-white mt-1"></h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="entityDetailEditBtn"
+                            class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-sm font-medium">
+                        <i class="fas fa-pen mr-1"></i>Modifier
+                    </button>
+                    <button type="button" onclick="closeEntityDetailModal()"
+                            class="text-slate-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-6 pt-6 space-y-4">
+                <div id="entityDetailEmptyHint" class="bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-300 flex items-start gap-3 hidden">
+                    <i class="fas fa-lightbulb text-amber-300 mt-0.5"></i>
+                    <p>Ajoutez une description structurée en utilisant <code class="bg-slate-900 px-1 py-0.5 rounded text-xs">#</code> pour les titres, <code class="bg-slate-900 px-1 py-0.5 rounded text-xs">-</code> pour les listes, ou <span class="bg-slate-900 px-1 py-0.5 rounded text-xs">**gras**</span> pour mettre en valeur les détails clés.</p>
+                </div>
+                <div id="entityDetailContent" class="space-y-6">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Entity Modal -->
 <div id="editModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
     <div class="flex items-center justify-center min-h-screen p-4">
@@ -383,9 +474,10 @@ class InvestigationApp {
         this.entities = [];
         this.links = [];
         this.editingEntity = null;
+    this.activeDetailEntityId = null;
         this.networkChart = null;
         this.members = [];
-    this.membersLoaded = false;
+        this.membersLoaded = false;
         this.currentUserId = '{{ request.user.id }}';
         this.userRole = '{{ user_role }}';
         this.investigationOwnerId = '{{ investigation.created_by_id }}';
@@ -416,6 +508,15 @@ class InvestigationApp {
             if (e.target.id === 'linkModal') this.closeLinkModal();
         });
 
+        const detailModal = document.getElementById('entityDetailModal');
+        if (detailModal) {
+            detailModal.addEventListener('click', (e) => {
+                if (e.target.id === 'entityDetailModal') {
+                    this.closeEntityDetail();
+                }
+            });
+        }
+
         const addTypeModal = document.getElementById('addTypeModal');
         if (addTypeModal) {
             addTypeModal.addEventListener('click', (e) => {
@@ -444,6 +545,7 @@ class InvestigationApp {
                 this.closeLinkModal();
                 this.closeAddTypeModal();
                 this.closeInvestigationSettingsModal();
+                this.closeEntityDetail();
                 document.getElementById('filterDropdown')?.classList.add('hidden');
             }
         });
@@ -517,6 +619,7 @@ class InvestigationApp {
             }
 
             this.refreshView();
+            this.refreshEntityDetail();
             // also refresh presence immediately after loading data
             this.fetchPresence();
         } catch (error) {
@@ -664,6 +767,330 @@ class InvestigationApp {
             row.appendChild(actions);
             container.appendChild(row);
         });
+    }
+
+    isDetailOpen() {
+        const modal = document.getElementById('entityDetailModal');
+        return Boolean(modal && !modal.classList.contains('hidden'));
+    }
+
+    openEntityDetail(entityId) {
+        const entity = this.entities.find(e => String(e.id) === String(entityId));
+        if (!entity) {
+            this.showNotification('Élément introuvable', 'error');
+            return;
+        }
+
+        this.activeDetailEntityId = String(entity.id);
+        const modal = document.getElementById('entityDetailModal');
+        if (!modal) return;
+
+        this.populateEntityDetail(entity);
+        modal.classList.remove('hidden');
+
+        const drawer = modal.querySelector('.overflow-y-auto');
+        if (drawer) {
+            drawer.scrollTop = 0;
+        }
+    }
+
+    closeEntityDetail() {
+        const modal = document.getElementById('entityDetailModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        this.activeDetailEntityId = null;
+    }
+
+    refreshEntityDetail() {
+        if (!this.activeDetailEntityId || !this.isDetailOpen()) {
+            return;
+        }
+        const entity = this.entities.find(e => String(e.id) === String(this.activeDetailEntityId));
+        if (!entity) {
+            this.closeEntityDetail();
+            return;
+        }
+        this.populateEntityDetail(entity);
+    }
+
+    populateEntityDetail(entity) {
+        const titleEl = document.getElementById('entityDetailTitle');
+        const typeEl = document.getElementById('entityDetailType');
+        const contentEl = document.getElementById('entityDetailContent');
+        const editBtn = document.getElementById('entityDetailEditBtn');
+
+        if (!contentEl || !titleEl || !typeEl) return;
+
+        const typeLabels = {
+            person: 'Personne',
+            location: 'Lieu',
+            evidence: 'Preuve',
+            event: 'Événement'
+        };
+
+        titleEl.textContent = entity.title || 'Sans titre';
+        typeEl.textContent = typeLabels[entity.type] || 'Élément';
+
+        if (editBtn) {
+            editBtn.onclick = () => {
+                this.closeEntityDetail();
+                this.editEntity(entity.id);
+            };
+        }
+
+        const metaRows = this.buildEntityMetaRows(entity);
+        const linkedEntities = this.getLinkedEntitiesOverview(entity.id);
+        const safeLinkedEntities = linkedEntities.map(item => ({
+            entity: {
+                id: item.entity.id,
+                type: item.entity.type,
+                title: item.entity.title ? this.escapeHtml(item.entity.title) : 'Sans titre'
+            },
+            relations: item.relations
+                .map(rel => this.escapeHtml(rel))
+                .filter(Boolean)
+        }));
+        const descriptionHtml = entity.description
+            ? this.renderMarkdown(entity.description)
+            : '<p class="text-sm text-slate-500 italic">Aucune description pour le moment.</p>';
+
+        const hasDescription = Boolean(entity.description && entity.description.trim());
+        const hasMeta = metaRows.length > 0;
+        const hasLinked = safeLinkedEntities.length > 0;
+
+        const introToastEl = document.getElementById('entityDetailEmptyHint');
+        if (introToastEl) {
+            introToastEl.classList.toggle('hidden', hasDescription || hasMeta || hasLinked);
+        }
+
+        const metaSection = metaRows.length ? `
+            <section class="space-y-3">
+                <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-[0.2em]">Informations clés</h3>
+                <dl class="space-y-3">
+                    ${metaRows.map(row => `
+                        <div class="flex items-start justify-between gap-4 pb-3 border-b border-slate-800 last:border-transparent">
+                            <dt class="text-xs uppercase tracking-[0.2em] text-slate-500">${row.label}</dt>
+                            <dd class="text-sm text-slate-100 text-right">${row.value}</dd>
+                        </div>
+                    `).join('')}
+                </dl>
+            </section>
+        ` : '';
+
+        const descriptionSection = `
+            <section class="space-y-3">
+                <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-[0.2em]">Description</h3>
+                ${hasDescription ? `
+                    <div class="prose prose-invert prose-sm max-w-none leading-relaxed">
+                        ${descriptionHtml}
+                    </div>
+                ` : '<p class="text-sm text-slate-500 italic">Aucune description pour le moment.</p>'}
+            </section>
+        `;
+
+        const linkedSection = `
+            <section class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-[0.2em]">Liens</h3>
+                    <button type="button" class="text-xs text-blue-400 hover:text-blue-300" onclick="app.openLinkModal('${entity.id}')">
+                        <i class="fas fa-plus mr-1"></i>Ajouter un lien
+                    </button>
+                </div>
+                ${safeLinkedEntities.length ? `
+                    <ul class="space-y-2">
+                        ${safeLinkedEntities.map(item => `
+                            <li class="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-medium text-slate-100">${item.entity.title}</div>
+                                    <div class="text-[11px] uppercase tracking-[0.2em] text-slate-500">${typeLabels[item.entity.type] || item.entity.type}</div>
+                                    ${item.relations.length ? `<div class="mt-1 flex flex-wrap gap-1">
+                                        ${item.relations.map(rel => `<span class="px-2 py-0.5 text-[11px] rounded-full bg-slate-900 border border-slate-700 text-slate-300">${rel}</span>`).join('')}
+                                    </div>` : ''}
+                                </div>
+                                <button type="button" class="px-2 py-1 text-xs bg-slate-900/80 border border-slate-700 rounded-md hover:border-slate-500 text-slate-200"
+                                        onclick="event.stopPropagation(); app.openEntityDetail('${item.entity.id}')">
+                                    Ouvrir
+                                </button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                ` : '<p class="text-sm text-slate-500 italic">Aucun lien pour le moment.</p>'}
+            </section>
+        `;
+
+        const createdLabel = this.escapeHtml(this.formatDateTimeDisplay(entity.created_at));
+        const updatedLabel = entity.updated_at ? this.escapeHtml(this.formatDateTimeDisplay(entity.updated_at)) : null;
+
+        const auditSection = `
+            <section class="space-y-2 text-xs text-slate-500">
+                <div>Créé le ${createdLabel}</div>
+                ${updatedLabel ? `<div>Mis à jour le ${updatedLabel}</div>` : ''}
+            </section>
+        `;
+
+        contentEl.innerHTML = [metaSection, descriptionSection, linkedSection, auditSection]
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    buildEntityMetaRows(entity) {
+        const rows = [];
+        const pushRow = (label, value) => {
+            if (value !== null && value !== undefined && value !== '') {
+                rows.push({
+                    label,
+                    value: this.escapeHtml(value)
+                });
+            }
+        };
+
+        switch (entity.type) {
+            case 'person':
+                pushRow('Rôle', entity.role || '—');
+                break;
+            case 'location':
+                pushRow('Zone / Ville', entity.location || '—');
+                pushRow('Adresse', entity.address || '—');
+                break;
+            case 'evidence':
+                pushRow('Type de preuve', entity.evidence_type || '—');
+                break;
+            case 'event':
+                pushRow('Début', this.formatDateTimeDisplay(entity.event_date));
+                pushRow('Fin', this.formatDateTimeDisplay(entity.event_end_date));
+                if (entity.is_timeslot) {
+                    pushRow('Précision', 'Créneau approximatif');
+                }
+                const linkedLocations = this.getLinkedLocations(entity.id);
+                if (linkedLocations.length) {
+                    pushRow('Lieux associés', linkedLocations.map(loc => loc.title).join(', '));
+                }
+                break;
+        }
+
+        if (entity.created_by) {
+            pushRow('Créé par', entity.created_by);
+        }
+
+        return rows;
+    }
+
+    formatDateTimeDisplay(value) {
+        if (!value) return '—';
+        try {
+            const hasTime = typeof value === 'string' && value.includes('T') && value.includes(':');
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+            const options = hasTime
+                ? { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+                : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+            return date.toLocaleString('fr-FR', options);
+        } catch (error) {
+            return value;
+        }
+    }
+
+    getLinkedEntitiesOverview(entityId) {
+        const targetId = String(entityId);
+        const grouped = new Map();
+
+        const addRelation = (otherEntity, label) => {
+            if (!otherEntity) return;
+            const key = String(otherEntity.id);
+            if (!grouped.has(key)) {
+                grouped.set(key, { entity: otherEntity, relations: [] });
+            }
+            if (label) {
+                grouped.get(key).relations.push(label);
+            }
+        };
+
+        this.links.forEach(link => {
+            const fromId = String(link.from_entity.id);
+            const toId = String(link.to_entity.id);
+
+            if (fromId === targetId) {
+                addRelation(link.to_entity, link.title || 'Lien sortant');
+            } else if (toId === targetId) {
+                addRelation(link.from_entity, link.title || 'Lien entrant');
+            }
+        });
+
+        return Array.from(grouped.values());
+    }
+
+    renderMarkdown(text) {
+        if (!text) {
+            return '';
+        }
+
+        const escaped = this.escapeHtml(text).replace(/\r\n/g, '\n');
+        const lines = escaped.split('\n');
+        const htmlParts = [];
+        let inList = false;
+
+        const flushList = () => {
+            if (inList) {
+                htmlParts.push('</ul>');
+                inList = false;
+            }
+        };
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+            if (headingMatch) {
+                flushList();
+                const level = headingMatch[1].length;
+                const content = this.renderMarkdownInline(headingMatch[2]);
+                htmlParts.push(`<h${level} class="text-slate-100 text-base font-semibold">${content}</h${level}>`);
+                return;
+            }
+
+            if (/^[-*]\s+/.test(trimmed)) {
+                if (!inList) {
+                    htmlParts.push('<ul class="list-disc list-inside space-y-1">');
+                    inList = true;
+                }
+                const item = trimmed.replace(/^[-*]\s+/, '');
+                htmlParts.push(`<li>${this.renderMarkdownInline(item)}</li>`);
+                return;
+            }
+
+            if (trimmed === '') {
+                flushList();
+                htmlParts.push('<br>');
+                return;
+            }
+
+            flushList();
+            htmlParts.push(`<p class="text-sm text-slate-200">${this.renderMarkdownInline(trimmed)}</p>`);
+        });
+
+        flushList();
+
+        return htmlParts.join('\n');
+    }
+
+    renderMarkdownInline(text) {
+        return text
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+?)`/g, '<code class="bg-slate-800 px-1 py-0.5 rounded text-xs text-blue-200">$1</code>');
+    }
+
+    escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     openInvestigationSettingsModal() {
@@ -878,6 +1305,7 @@ class InvestigationApp {
                 this.entities = newEntities;
                 this.links = newLinks;
                 this.refreshView();
+                this.refreshEntityDetail();
             }
         } catch (e) {
             console.error('Error fetching latest changes for auto-sync', e);
@@ -1284,13 +1712,13 @@ class InvestigationApp {
             `;
 
             eventBlock.addEventListener('click', () => {
-                this.editEntity(evt.raw.id);
+                this.openEntityDetail(evt.raw.id);
             });
 
             eventBlock.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.editEntity(evt.raw.id);
+                    this.openEntityDetail(evt.raw.id);
                 }
             });
 
@@ -1381,6 +1809,10 @@ class InvestigationApp {
             }
         });
         
+        const nodeCount = filteredEntities.length;
+        const repulsion = Math.min(480, 140 + nodeCount * 22);
+        const edgeLength = Math.min(260, 160 + Math.max(0, nodeCount - 4) * 6);
+
         const option = {
             backgroundColor: 'transparent',
             tooltip: {
@@ -1410,6 +1842,8 @@ class InvestigationApp {
             series: [{
                 type: 'graph',
                 layout: 'force',
+                zoom: 1.18,
+                center: ['50%', '50%'],
                 data: nodes,
                 links: links,
                 categories: [
@@ -1420,9 +1854,9 @@ class InvestigationApp {
                 ],
                 roam: true,
                 force: {
-                    repulsion: 100,
-                    gravity: 0.1,
-                    edgeLength: 150,
+                    repulsion: repulsion,
+                    gravity: 0.08,
+                    edgeLength: edgeLength,
                     layoutAnimation: true
                 },
                 label: {
@@ -1533,13 +1967,17 @@ class InvestigationApp {
             }
             
             return `
-                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-${color}-500 transition-all duration-300 transform hover:scale-105">
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-${color}-500 transition-all duration-300 transform hover:scale-105 cursor-pointer focus-within:ring-2 focus-within:ring-${color}-500/60"
+                     role="button"
+                     tabindex="0"
+                     onclick="app.openEntityDetail('${entity.id}')"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.openEntityDetail('${entity.id}');}">
                     <div class="flex items-start justify-between mb-4">
                         <div class="w-12 h-12 bg-${color}-600 rounded-lg flex items-center justify-center">
                             <i class="${icon} text-white text-xl"></i>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="app.editEntity('${entity.id}')" 
+                            <button onclick="event.stopPropagation(); app.editEntity('${entity.id}')"
                                     class="p-2 text-blue-400 hover:text-blue-300 transition-colors">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -1750,6 +2188,9 @@ class InvestigationApp {
     }
     
     async openLinkModal(entityId = null) {
+        if (this.isDetailOpen()) {
+            this.closeEntityDetail();
+        }
         const modal = document.getElementById('linkModal');
         const fromSelect = document.getElementById('fromEntitySelect');
         const toSelect = document.getElementById('toEntitySelect');
@@ -2104,6 +2545,10 @@ function closeLinkModal() {
 
 function addLink(event) {
     app.addLink(event);
+}
+
+function closeEntityDetailModal() {
+    app.closeEntityDetail();
 }
 
 // Toggle the filters dropdown (used by the filter button)
