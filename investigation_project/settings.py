@@ -14,6 +14,13 @@ from pathlib import Path
 from decouple import config
 import os
 
+
+def csv_list(value: str, default: list[str] | None = None) -> list[str]:
+    """Parse a comma-separated environment variable into a cleaned list."""
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(',') if item.strip()]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -165,10 +172,14 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+CORS_ALLOWED_ORIGINS = csv_list(
+    config('CORS_ALLOWED_ORIGINS', default='http://localhost:8000,http://127.0.0.1:8000')
+)
+
+# CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = csv_list(
+    config('CSRF_TRUSTED_ORIGINS', default='https://investigation.raspotin.com')
+)
 
 # Custom user model
 AUTH_USER_MODEL = 'investigation.User'

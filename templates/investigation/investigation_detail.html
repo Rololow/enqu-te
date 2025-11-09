@@ -10,7 +10,19 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h1 class="text-2xl font-bold text-white">{{ investigation.title }}</h1>
-                    <p class="text-slate-400">Code: <span class="font-mono text-blue-400">{{ investigation.code }}</span></p>
+                    <p class="text-slate-400 flex items-center gap-2">
+                        <span>Code&nbsp;:</span>
+                        <button id="investigationCodeBtn"
+                                type="button"
+                                data-code="{{ investigation.code }}"
+                                data-original-label="{{ investigation.code }}"
+                                data-copied-label="Copié !"
+                                class="inline-flex items-center gap-2 font-mono text-blue-400 hover:text-blue-300 bg-slate-800/40 border border-blue-500/40 rounded px-2 py-1 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                            <span data-code-display>{{ investigation.code }}</span>
+                            <i class="fas fa-copy text-xs" aria-hidden="true"></i>
+                            <span class="sr-only">Copier le code de l'enquête</span>
+                        </button>
+                    </p>
                     <!-- Presence bubbles -->
                     <div id="presenceBubbles" class="mt-2 flex items-center space-x-2"></div>
                     {% if investigation.description %}
@@ -698,9 +710,10 @@ class InvestigationApp {
             return;
         }
 
-        const MS_IN_MINUTE = 60000;
-        const MS_IN_HOUR = 60 * MS_IN_MINUTE;
-        const POINT_DURATION_MS = 45 * MS_IN_MINUTE;
+    const MS_IN_MINUTE = 60000;
+    const MS_IN_HOUR = 60 * MS_IN_MINUTE;
+    const POINT_DURATION_MS = 45 * MS_IN_MINUTE;
+    const POINT_EVENT_MIN_WIDTH = 160;
 
         const parseDate = (value) => {
             if (!value) return null;
@@ -838,6 +851,7 @@ class InvestigationApp {
         const includeDateInLabel = totalDurationMs > 12 * MS_IN_HOUR;
         const dateFormatter = includeDateInLabel ? new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : null;
         const timeFormatter = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const fullDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
         const formatMoment = (date) => {
             if (!date) return '';
@@ -846,6 +860,14 @@ class InvestigationApp {
                 return timePart;
             }
             return `${dateFormatter.format(date)} · ${timePart}`;
+        };
+
+        const formatMomentWithFallback = (date, isDateOnly) => {
+            if (!date) return '';
+            if (isDateOnly) {
+                return fullDateFormatter.format(date);
+            }
+            return formatMoment(date);
         };
 
         const lanes = [];
@@ -868,13 +890,21 @@ class InvestigationApp {
                 lanes[laneIndex] = visualEndMs;
             }
 
-            let width = evt.hasDuration ? rawWidthRatio * timelineWidth : 12;
+            let width;
             if (evt.hasDuration) {
-                width = Math.max(width, 24);
+                width = Math.max(rawWidthRatio * timelineWidth, 24);
+            } else {
+                width = POINT_EVENT_MIN_WIDTH;
             }
 
             const left = Math.max(ratioStart * timelineWidth, 0);
-            width = Math.min(width, timelineWidth - left);
+            width = Math.min(width, Math.max(timelineWidth - left, 0));
+            width = Math.max(width, 12);
+
+            let blockLeft = left;
+            if (blockLeft + width > timelineWidth) {
+                blockLeft = Math.max(timelineWidth - width, 0);
+            }
 
             const eventBlock = document.createElement('div');
             eventBlock.className = 'timeline-event';
@@ -885,15 +915,23 @@ class InvestigationApp {
                 eventBlock.classList.add('point');
             }
 
-            const timeLabel = evt.hasDuration
-                ? `${formatMoment(evt.start)} → ${formatMoment(new Date(endMs))}`
-                : formatMoment(evt.start);
+            const rawStartDate = evt.raw.event_date || '';
+            const rawEndDate = evt.raw.event_end_date || '';
+            const isDateOnlyStart = Boolean(rawStartDate && !rawStartDate.includes('T') && !rawStartDate.includes(':'));
+            const isDateOnlyEnd = Boolean(rawEndDate && !rawEndDate.includes('T') && !rawEndDate.includes(':'));
+
+            const startLabel = formatMomentWithFallback(evt.start, isDateOnlyStart);
+            const endLabel = evt.hasDuration ? formatMomentWithFallback(new Date(endMs), isDateOnlyEnd) : '';
+            const timeLabel = evt.hasDuration ? `${startLabel} → ${endLabel}` : startLabel;
 
             const locationNames = linkedLocations.map(loc => loc.title).filter(Boolean);
             const metaSegments = [];
 
             if (evt.raw.is_timeslot) {
                 metaSegments.push('<span>Créneau approximatif</span>');
+            }
+            if (!evt.hasDuration && isDateOnlyStart) {
+                metaSegments.push('<span>Heure non précisée</span>');
             }
             if (locationNames.length) {
                 metaSegments.push(`<span><i class="fas fa-map-marker-alt mr-1"></i>${locationNames.join(', ')}</span>`);
@@ -907,7 +945,7 @@ class InvestigationApp {
 
             eventBlock.dataset.title = tooltipParts.filter(Boolean).join(' • ');
             eventBlock.dataset.eventId = evt.raw.id;
-            eventBlock.style.left = `${left}px`;
+            eventBlock.style.left = `${blockLeft}px`;
             eventBlock.style.top = `${laneIndex * laneHeight}px`;
             eventBlock.style.width = `${Math.max(width, 4)}px`;
             eventBlock.setAttribute('tabindex', '0');
@@ -1780,6 +1818,76 @@ function closeAddTypeModal() {
 
 // Initialize app
 const app = new InvestigationApp();
+
+function copyInvestigationCode(buttonEl) {
+    if (!buttonEl) return;
+    const code = buttonEl.dataset.code;
+    if (!code) return;
+
+    const setSuccessState = () => {
+        const label = buttonEl.querySelector('[data-code-display]');
+        const icon = buttonEl.querySelector('i');
+        const defaultClasses = ['text-blue-400', 'hover:text-blue-300', 'border-blue-500/40'];
+        const successClasses = ['text-emerald-300', 'border-emerald-500/60', 'bg-emerald-500/10'];
+
+        label && (label.textContent = buttonEl.dataset.copiedLabel || 'Copié !');
+        buttonEl.classList.remove(...defaultClasses);
+        buttonEl.classList.add(...successClasses);
+        icon && icon.classList.replace('fa-copy', 'fa-check');
+
+        if (buttonEl._copyTimeout) {
+            clearTimeout(buttonEl._copyTimeout);
+        }
+
+        buttonEl._copyTimeout = setTimeout(() => {
+            label && (label.textContent = buttonEl.dataset.originalLabel || code);
+            buttonEl.classList.remove(...successClasses);
+            buttonEl.classList.add(...defaultClasses);
+            icon && icon.classList.replace('fa-check', 'fa-copy');
+        }, 1600);
+    };
+
+    const setErrorState = () => {
+        app.showNotification('Impossible de copier le code', 'error');
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code)
+            .then(() => {
+                setSuccessState();
+                app.showNotification('Code copié dans le presse-papiers', 'success');
+            })
+            .catch(() => setErrorState());
+        return;
+    }
+
+    const tempInput = document.createElement('input');
+    tempInput.value = code;
+    tempInput.setAttribute('readonly', '');
+    tempInput.style.position = 'absolute';
+    tempInput.style.opacity = '0';
+    document.body.appendChild(tempInput);
+    tempInput.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            setSuccessState();
+            app.showNotification('Code copié dans le presse-papiers', 'success');
+        } else {
+            setErrorState();
+        }
+    } catch (err) {
+        setErrorState();
+    }
+
+    document.body.removeChild(tempInput);
+}
+
+const investigationCodeButton = document.getElementById('investigationCodeBtn');
+if (investigationCodeButton) {
+    investigationCodeButton.addEventListener('click', () => copyInvestigationCode(investigationCodeButton));
+}
 
 // Handle window resize for network chart
 window.addEventListener('resize', () => {
