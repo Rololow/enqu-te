@@ -5,14 +5,15 @@
         csrfToken: pageConfig.csrfToken ? String(pageConfig.csrfToken) : '',
         currentUserId: pageConfig.currentUserId ? String(pageConfig.currentUserId) : '',
         userRole: pageConfig.userRole ? String(pageConfig.userRole) : '',
-        investigationOwnerId: pageConfig.investigationOwnerId ? String(pageConfig.investigationOwnerId) : ''
+        investigationOwnerId: pageConfig.investigationOwnerId ? String(pageConfig.investigationOwnerId) : '',
+        currentView: pageConfig.currentView ? String(pageConfig.currentView) : 'timeline'
     };
 
     // Investigation App JavaScript
     class InvestigationApp {
         constructor(initialConfig) {
             this.investigationId = initialConfig.investigationId;
-            this.currentView = 'timeline';
+            this.currentView = initialConfig.currentView || 'timeline';
             this.entities = [];
             this.links = [];
             this.editingEntity = null;
@@ -1155,37 +1156,22 @@
 
         switchView(view) {
             this.currentView = view;
-
-            // Update button states
-            document.querySelectorAll('#timelineBtn, #networkBtn, #cardsBtn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white');
-                btn.classList.add('bg-slate-700', 'text-slate-300');
-            });
-
-            // Hide all views
-            document.getElementById('timelineView').classList.add('hidden');
-            document.getElementById('networkView').classList.add('hidden');
-            document.getElementById('cardsView').classList.add('hidden');
-
-            // Show selected view
+            // Render the current view based on what's on the page
             switch(view) {
                 case 'timeline':
-                    document.getElementById('timelineBtn').classList.remove('bg-slate-700', 'text-slate-300');
-                    document.getElementById('timelineBtn').classList.add('bg-blue-600', 'text-white');
-                    document.getElementById('timelineView').classList.remove('hidden');
-                    this.renderTimeline();
+                    if (document.getElementById('timelineView')) {
+                        this.renderTimeline();
+                    }
                     break;
                 case 'network':
-                    document.getElementById('networkBtn').classList.remove('bg-slate-700', 'text-slate-300');
-                    document.getElementById('networkBtn').classList.add('bg-blue-600', 'text-white');
-                    document.getElementById('networkView').classList.remove('hidden');
-                    this.renderNetwork();
+                    if (document.getElementById('networkView')) {
+                        this.renderNetwork();
+                    }
                     break;
                 case 'cards':
-                    document.getElementById('cardsBtn').classList.remove('bg-slate-700', 'text-slate-300');
-                    document.getElementById('cardsBtn').classList.add('bg-blue-600', 'text-white');
-                    document.getElementById('cardsView').classList.remove('hidden');
-                    this.renderCards();
+                    if (document.getElementById('cardsView')) {
+                        this.renderCards();
+                    }
                     break;
             }
         }
