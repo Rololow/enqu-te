@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ investigation.title }} - RoroEnquête{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900">
+    <!-- Investigation Header -->
+    <div class="bg-slate-800 border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">{{ investigation.title }}</h1>
+                    <p class="text-slate-400 flex items-center gap-2">
+                        <span>Code&nbsp;:</span>
+                        <button id="investigationCodeBtn"
+                                type="button"
+                                data-code="{{ investigation.code }}"
+                                data-original-label="{{ investigation.code }}"
+                                data-copied-label="Copié !"
+                                class="inline-flex items-center gap-2 font-mono text-blue-400 hover:text-blue-300 bg-slate-800/40 border border-blue-500/40 rounded px-2 py-1 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                            <span data-code-display>{{ investigation.code }}</span>
+                            <i class="fas fa-copy text-xs" aria-hidden="true"></i>
+                            <span class="sr-only">Copier le code de l'enquête</span>
+                        </button>
+                    </p>
+                    <!-- Presence bubbles -->
+                    <div id="presenceBubbles" class="mt-2 flex items-center space-x-2"></div>
+                    {% if investigation.description %}
+                    <p class="text-slate-300 mt-2">{{ investigation.description }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'dashboard' %}" 
+                       class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Retour
+                    </a>
+                    {% if user_role == 'owner' %}
+                    <button type="button"
+                            id="investigationSettingsBtn"
+                            onclick="openInvestigationSettingsModal()"
+                            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fas fa-cog"></i>
+                        <span>Paramètres</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- View Toggle -->
+            <div class="flex space-x-2">
+                <a href="{% url 'investigation_timeline' investigation.id %}" id="timelineBtn"
+                   class="px-4 py-2 {% if current_view == 'timeline' %}bg-blue-600 text-white{% else %}bg-slate-700 text-slate-300 hover:bg-slate-600{% endif %} rounded-lg transition-all">
+                    <i class="fas fa-clock mr-2"></i>Timeline
+                </a>
+                <a href="{% url 'investigation_graphe' investigation.id %}" id="networkBtn"
+                   class="px-4 py-2 {% if current_view == 'network' %}bg-blue-600 text-white{% else %}bg-slate-700 text-slate-300 hover:bg-slate-600{% endif %} rounded-lg transition-all">
+                    <i class="fas fa-project-diagram mr-2"></i>Graphe de liens
+                </a>
+                <a href="{% url 'investigation_fiches' investigation.id %}" id="cardsBtn"
+                   class="px-4 py-2 {% if current_view == 'cards' %}bg-blue-600 text-white{% else %}bg-slate-700 text-slate-300 hover:bg-slate-600{% endif %} rounded-lg transition-all">
+                    <i class="fas fa-th-large mr-2"></i>Fiches
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Entity Buttons -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-wrap gap-3 mb-6">
+            <button id="addPrimaryBtn" onclick="openAddTypeModal()"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                <i class="fas fa-plus mr-2"></i>Ajouter
+            </button>
+        </div>
+
+        <!-- Add type selection modal: choose which kind of entity/link to add -->
+        <div id="addTypeModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold">Ajouter</h3>
+                        <button onclick="closeAddTypeModal()" class="text-slate-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="(function(){ openCreateEntityForm('person'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-user"></i>
+                                <div>
+                                    <div class="font-semibold">Personne</div>
+                                    <div class="text-slate-200 text-sm">Ajouter une personne</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openCreateEntityForm('location'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <div>
+                                    <div class="font-semibold">Lieu</div>
+                                    <div class="text-slate-200 text-sm">Ajouter un lieu</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openCreateEntityForm('evidence'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-file-alt"></i>
+                                <div>
+                                    <div class="font-semibold">Preuve</div>
+                                    <div class="text-slate-200 text-sm">Ajouter une preuve</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openCreateEntityForm('event'); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-amber-600 hover:bg-amber-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-calendar"></i>
+                                <div>
+                                    <div class="font-semibold">Événement</div>
+                                    <div class="text-slate-200 text-sm">Ajouter un événement</div>
+                                </div>
+                            </div>
+                        </button>
+
+                        <button onclick="(function(){ openLinkModal(); closeAddTypeModal(); })()"
+                                class="w-full px-4 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-left">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-link"></i>
+                                <div>
+                                    <div class="font-semibold">Lien</div>
+                                    <div class="text-slate-200 text-sm">Créer un lien entre deux entités</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-6">
+            <div class="relative">
+                <button type="button" id="filterToggleButton" onclick="toggleFilterDropdown()"
+                        class="relative inline-flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-filter"></i>
+                    <span>Filtres</span>
+                    <span id="activeFilterBadge" class="hidden ml-2 h-5 w-5 inline-flex items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white"></span>
+                </button>
+
+                <div id="filterDropdown" class="hidden absolute mt-2 left-0 w-[28rem] max-w-[90vw] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 p-5">
+                    <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Types d'éléments</h4>
+                                <button type="button" id="filterTypeAllBtn" class="text-xs text-blue-400 hover:text-blue-300" onclick="app.resetTypeFilters()">Tout</button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2" id="filterTypeButtons">
+                                <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="person" onclick="app.toggleTypeFilter('person')">
+                                    <i class="fas fa-user"></i><span>Personnes</span>
+                                </button>
+                                <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="location" onclick="app.toggleTypeFilter('location')">
+                                    <i class="fas fa-map-marker-alt"></i><span>Lieux</span>
+                                </button>
+                                <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="evidence" onclick="app.toggleTypeFilter('evidence')">
+                                    <i class="fas fa-file-alt"></i><span>Preuves</span>
+                                </button>
+                                <button type="button" class="filter-type-btn px-3 py-2 text-sm bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center justify-center gap-2" data-filter-type="event" onclick="app.toggleTypeFilter('event')">
+                                    <i class="fas fa-calendar"></i><span>Événements</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Attributs rapides</h4>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 text-sm text-slate-200 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700">
+                                    <input type="checkbox" id="filterHasDescription" class="h-4 w-4 rounded border-slate-600 text-blue-500 focus:ring-blue-400" onchange="app.toggleAttributeFilter('has_description', this.checked)">
+                                    <span>Avec description</span>
+                                </label>
+                                <label class="flex items-center gap-3 text-sm text-slate-200 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700">
+                                    <input type="checkbox" id="filterHasLinks" class="h-4 w-4 rounded border-slate-600 text-blue-500 focus:ring-blue-400" onchange="app.toggleAttributeFilter('has_links', this.checked)">
+                                    <span>Avec liens</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Tags</h4>
+                                <button type="button" class="text-xs text-blue-400 hover:text-blue-300" onclick="app.resetTagFilters()">Tout</button>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-3">Combinez plusieurs tags pour affiner la sélection.</p>
+                            <div id="tagsFilterList" class="flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Focus sur des entités</h4>
+                            <p class="text-xs text-slate-500 mb-3">Sélectionnez une ou plusieurs entités pour afficher leurs fiches et tout ce qui leur est relié.</p>
+                            <div class="space-y-3">
+                                <div>
+                                    <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Personnes</h5>
+                                    <div id="personsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                                </div>
+                                <div>
+                                    <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Lieux</h5>
+                                    <div id="placesList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                                </div>
+                                <div>
+                                    <h5 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Événements</h5>
+                                    <div id="eventsList" class="flex flex-col gap-1 text-slate-300 text-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-2">Trier par</h4>
+                            <select id="sortSelect" class="w-full px-4 py-2 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-blue-500 focus:outline-none" onchange="app.onSortChange(event)">
+                                <option value="updated_desc">Dernières mises à jour</option>
+                                <option value="updated_asc">Premières mises à jour</option>
+                                <option value="created_desc">Création (récent → ancien)</option>
+                                <option value="created_asc">Création (ancien → récent)</option>
+                                <option value="title_asc">Titre A → Z</option>
+                                <option value="title_desc">Titre Z → A</option>
+                                <option value="type_asc">Type</option>
+                                <option value="links_desc">Nombre de liens</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
+                        <button type="button" onclick="clearFilters();" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-200">Réinitialiser</button>
+                        <button type="button" onclick="applyFilters(); toggleFilterDropdown();" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white">Appliquer</button>
+                    </div>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                    <input type="text" id="searchInput" placeholder="Rechercher..." oninput="app.onSearchInput(event)"
+                           class="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none text-slate-200 placeholder-slate-500">
+                    <div id="activeFilterChips" class="hidden flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Content Block -->
+    {% block view_content %}{% endblock %}
+</div>
+
+{% include 'investigation/modals.html' %}
+
+<script>
+    window.INVESTIGATION_PAGE_CONTEXT = {
+        investigationId: '{{ investigation.id }}',
+        csrfToken: '{{ csrf_token }}',
+        currentUserId: '{{ request.user.id }}',
+        userRole: '{{ user_role|default_if_none:""|escapejs }}',
+        investigationOwnerId: '{{ investigation.created_by_id }}',
+        currentView: '{{ current_view }}'
+    };
+</script>
+<script src="{% static 'js/investigation_detail.js' %}"></script>
+{% endblock %}

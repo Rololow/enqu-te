@@ -123,7 +123,13 @@ def dashboard(request):
 
 @login_required
 def investigation_detail(request, investigation_id):
-    """Investigation detail view"""
+    """Investigation detail view - redirects to timeline by default"""
+    return redirect('investigation_timeline', investigation_id=investigation_id)
+
+
+@login_required
+def investigation_timeline(request, investigation_id):
+    """Investigation timeline view"""
     investigation = get_object_or_404(Investigation, id=investigation_id)
     
     # Check if user has access
@@ -134,10 +140,51 @@ def investigation_detail(request, investigation_id):
         'investigation': investigation,
         'entities': investigation.entities.prefetch_related('tags').order_by('-created_at'),
         'links': investigation.links.all().order_by('-created_at'),
-        'user_role': investigation.investigationmember_set.get(user=request.user).role
+        'user_role': investigation.investigationmember_set.get(user=request.user).role,
+        'current_view': 'timeline'
     }
     
-    return render(request, 'investigation/investigation_detail.html', context)
+    return render(request, 'investigation/investigation_timeline.html', context)
+
+
+@login_required
+def investigation_graphe(request, investigation_id):
+    """Investigation graph view"""
+    investigation = get_object_or_404(Investigation, id=investigation_id)
+    
+    # Check if user has access
+    if not investigation.members.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("Vous n'avez pas accès à cette enquête")
+    
+    context = {
+        'investigation': investigation,
+        'entities': investigation.entities.prefetch_related('tags').order_by('-created_at'),
+        'links': investigation.links.all().order_by('-created_at'),
+        'user_role': investigation.investigationmember_set.get(user=request.user).role,
+        'current_view': 'network'
+    }
+    
+    return render(request, 'investigation/investigation_graphe.html', context)
+
+
+@login_required
+def investigation_fiches(request, investigation_id):
+    """Investigation fiches (cards) view"""
+    investigation = get_object_or_404(Investigation, id=investigation_id)
+    
+    # Check if user has access
+    if not investigation.members.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("Vous n'avez pas accès à cette enquête")
+    
+    context = {
+        'investigation': investigation,
+        'entities': investigation.entities.prefetch_related('tags').order_by('-created_at'),
+        'links': investigation.links.all().order_by('-created_at'),
+        'user_role': investigation.investigationmember_set.get(user=request.user).role,
+        'current_view': 'cards'
+    }
+    
+    return render(request, 'investigation/investigation_fiches.html', context)
 
 
 @login_required
