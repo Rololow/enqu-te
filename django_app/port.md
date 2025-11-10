@@ -5,7 +5,26 @@
 - Réimplémenter l'API REST et les flux temps réel avec un framework Rust moderne.
 - Conserver la compatibilité avec le schéma de données existant ou prévoir une migration.
 - Moderniser le front en tirant parti de WebAssembly pour les vues interactives (timeline, graphe, cartes).
-- Séparer les vues timeline, graphe et fiches sur des pages dédiées (`/investigation/timeline`, `/investigation/graphe`, `/investigation/fiches`).
+- ✅ **COMPLÉTÉ**: Séparer les vues timeline, graphe et fiches sur des pages dédiées (`/investigation/<uuid>/timeline/`, `/investigation/<uuid>/graphe/`, `/investigation/<uuid>/fiches/`).
+
+## Changements Complétés
+
+### Séparation des Vues (Phase 1 - Django)
+- ✅ **Structure URL**: Création de trois routes distinctes :
+  - `/investigation/<uuid>/timeline/` pour la vue chronologique
+  - `/investigation/<uuid>/graphe/` pour la vue réseau de liens
+  - `/investigation/<uuid>/fiches/` pour la vue cartes
+- ✅ **Templates**: Création d'une architecture modulaire avec :
+  - `investigation_base.html` : template de base contenant les éléments communs (header, navigation, filtres)
+  - `investigation_timeline.html` : template spécifique pour la timeline
+  - `investigation_graphe.html` : template spécifique pour le graphe
+  - `investigation_fiches.html` : template spécifique pour les fiches
+  - `modals.html` : composants modaux réutilisables
+- ✅ **Views Django**: Trois fonctions de vue séparées avec contexte partagé
+- ✅ **Navigation**: Liens directs entre les pages au lieu de basculement JavaScript
+- ✅ **JavaScript**: Adaptation pour gérer le rendu basé sur la page actuelle
+
+**Impact**: Les utilisateurs peuvent désormais naviguer directement vers une vue spécifique via URL et partager des liens vers des vues particulières.
 
 ## TODO
 
