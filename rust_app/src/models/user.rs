@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 /// Custom user model with additional fields
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

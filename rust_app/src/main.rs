@@ -12,7 +12,6 @@ use axum::{
     Router,
 };
 use sqlx::PgPool;
-use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

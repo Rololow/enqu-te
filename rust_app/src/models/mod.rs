@@ -10,6 +10,3 @@ pub use user::*;
 pub use investigation::*;
 pub use entity::*;
 pub use link::*;
-pub use tag::*;
-pub use comment::*;
-pub use attachment::*;
